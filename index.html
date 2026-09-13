@@ -852,7 +852,14 @@ var RULE_COLS = [
 var CERT_COLS = ['学号','姓名','证书名称','颁发单位','级别','奖项/名次','获奖日期','备注','置信度'];
 var CAT_ORDER_PREF = ['思想品德','学业','科研创新','文体','社会实践','志愿服务','工作担当','其他'];
 
-var state = load() || {rules:[], certs:[], caps:{}, seq:1, photos:[], photoCerts:[]};
+/* 兼容旧版本地数据：强制补齐新增字段，防止旧 localStorage 缺 photos/photoCerts 导致报错 */
+var state = Object.assign({rules:[], certs:[], caps:{}, seq:1, photos:[], photoCerts:[]}, load() || {});
+state.caps = state.caps || {};
+state.photos = state.photos || [];
+state.photoCerts = state.photoCerts || [];
+state.seq = state.seq || 1;
+state.rules = state.rules || [];
+state.certs = state.certs || [];
 
 /* 首次访问：自动载入内置的重庆工商大学2026手册规则（64条，可随时导入CSV覆盖/追加） */
 if(!state.rules.length){
