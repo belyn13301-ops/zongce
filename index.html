@@ -156,6 +156,73 @@
     nav.tabs,.toolbar,.grain,footer,.dropzone,button{display:none !important;}
     body{background:#fff;}
   }
+
+  /* ---------- 拍照录入 ---------- */
+  .photo-layout{
+    display:grid; grid-template-columns: 320px 1fr; gap:18px;
+  }
+  @media (max-width:820px){ .photo-layout{grid-template-columns:1fr;} }
+  .photo-thumb-grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(76px,1fr)); gap:8px;
+    margin-top:10px; max-height:380px; overflow-y:auto; padding:4px;
+  }
+  .photo-thumb{
+    position:relative; aspect-ratio:1; border:2px solid var(--line); border-radius:8px;
+    overflow:hidden; cursor:pointer; background:#fdfaf1;
+    transition:all .2s ease;
+  }
+  .photo-thumb.active{ border-color:var(--tea); box-shadow:0 0 0 2px rgba(138,122,92,.2);}
+  .photo-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .photo-thumb .num{
+    position:absolute; top:2px; left:2px; background:rgba(70,60,46,.78); color:#fff;
+    font-size:10px; padding:1px 6px; border-radius:8px; letter-spacing:.5px;
+  }
+  .photo-thumb.done .num{ background:var(--ok);}
+  .photo-thumb .del{
+    position:absolute; top:2px; right:2px; width:18px; height:18px; border-radius:50%;
+    background:rgba(176,113,95,.85); color:#fff; border:none; font-size:11px;
+    line-height:16px; text-align:center; cursor:pointer; display:none; padding:0;
+  }
+  .photo-thumb:hover .del{ display:block;}
+  .photo-preview{
+    width:100%; max-height:300px; object-fit:contain; border-radius:8px;
+    background:#fdfaf1; border:1px solid var(--line);
+  }
+  .photo-form{
+    display:grid; grid-template-columns: 1fr 1fr; gap:8px 14px; margin-top:10px;
+  }
+  .photo-form .full{grid-column: 1 / -1;}
+  .photo-form label{
+    display:block; font-size:12px; color:var(--ink-light); margin-bottom:2px; letter-spacing:.5px;
+  }
+  .photo-form label b{color:var(--danger);}
+  .photo-form input, .photo-form select, .photo-form textarea{
+    width:100%; font-family:inherit; font-size:13px; padding:5px 8px;
+    border:1px solid var(--line); border-radius:6px; background:#fdfaf1; color:var(--ink);
+  }
+  .photo-form input:focus, .photo-form select:focus, .photo-form textarea:focus{
+    outline:none; border-color:var(--tea); background:#fff9ec;
+  }
+  .photo-form textarea{resize:vertical; min-height:48px;}
+  .ocr-progress{
+    height:6px; background:var(--paper2); border-radius:3px; overflow:hidden; margin-top:6px;
+    display:none;
+  }
+  .ocr-progress.on{display:block;}
+  .ocr-progress > div{
+    height:100%; background:var(--tea); width:0%; transition:width .3s ease;
+  }
+  .ocr-result{
+    width:100%; min-height:80px; max-height:160px; font-size:12px;
+    background:#faf5e6; border:1px dashed var(--line); border-radius:6px;
+    padding:6px 8px; resize:vertical; color:var(--ink-light);
+  }
+  .photo-list-table{
+    margin-top:14px; font-size:12.5px;
+  }
+  .photo-list-table td{ padding:4px 8px;}
+  .photo-list-table .empty{ padding:14px; font-size:13px;}
+  .badge-row{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:6px;}
 </style>
 </head>
 <body>
@@ -172,6 +239,7 @@
   </header>
 
   <nav class="tabs" id="tabs">
+    <button data-tab="photo">📷 拍照录入</button>
     <button data-tab="certs" class="active">① 导入证书</button>
     <button data-tab="pending">② 待确认</button>
     <button data-tab="summary">③ 汇总导出</button>
@@ -194,8 +262,8 @@
       <b>关于证书照片识别</b>：本工具不直接识别照片。把证书照片交给 AI（如 WorkBuddy）批量识别成 CSV 后导入本工具，识别流程见《班委操作手册》。识别置信度低的照片会自动标为「待确认」，不会瞎算。
     </div>
     <div style="margin-top:14px">
-      <button class="primary" onclick="loadDemo()">载入示例数据，先试试手感</button>
-      <button class="primary" onclick="switchTab('certs')">去导入证书 →</button>
+      <button class="primary" onclick="switchTab('photo')">📷 用拍照录入（同学用）→</button>
+      <button onclick="switchTab('certs')">导入证书 CSV（班委用）→</button>
     </div>
   </section>
 
@@ -207,10 +275,129 @@
       <button class="primary" onclick="addRule()">＋ 新增条款</button>
       <button onclick="importRulesCsv()">导入规则 CSV</button>
       <button onclick="exportRulesCsv()">导出规则 CSV</button>
-      <button class="ghost" onclick="loadDemoRules()">载入示例规则</button>
       <input type="file" id="file-rules" accept=".csv,.txt" style="display:none">
     </div>
     <div class="table-wrap"><table id="rules-table"></table></div>
+  </section>
+
+  <!-- ============ 拍照录入 ============ -->
+  <section class="card reveal" id="tab-photo" style="display:none">
+    <h2 class="tab-title">📷 拍照录入 <span class="step">同学用 · 上传照片自动出 CSV</span></h2>
+    <p class="hint">上传证书照片 → 看图填表 → <b>导出 CSV</b> 发给班委，班委在「① 导入证书」处统一录入。
+      不会转 Excel？正常——本工具替你转。🔒 照片只在本机浏览器，不上传任何服务器。</p>
+
+    <div class="photo-layout">
+      <!-- 左：图片管理 -->
+      <div>
+        <div class="dropzone" id="drop-photo" style="padding:18px">
+          <div style="font-family:KaiTi,serif; font-size:16px; color:var(--ink); letter-spacing:1.5px">📷 点这里上传证书照片</div>
+          <div style="font-size:12px; margin-top:6px">或拖拽图片到下方 · 支持 JPG/PNG · 可一次选多张</div>
+          <input type="file" id="file-photo" accept="image/*" multiple style="display:none">
+        </div>
+        <div class="hint" style="margin-top:10px">
+          <b>已上传 <span id="photo-count">0</span> 张</b> · 已录入 <span id="photo-done">0</span> 张
+        </div>
+        <div class="photo-thumb-grid" id="photo-thumbs"></div>
+      </div>
+
+      <!-- 右：当前图片填表 -->
+      <div>
+        <div id="photo-empty" style="text-align:center; padding:40px 20px; color:var(--ink-light); font-family:KaiTi,serif; letter-spacing:2px; font-size:15px;">
+          ← 先在左侧上传一张证书照片
+        </div>
+        <div id="photo-form-wrap" style="display:none">
+          <img id="photo-preview" class="photo-preview" alt="">
+          <div class="hint" id="photo-current-name" style="margin-top:6px; font-size:12px;"></div>
+
+          <div class="photo-form">
+            <div>
+              <label>学号 <b>*</b></label>
+              <input type="text" id="pf-sid" placeholder="如 20240001" autocomplete="off">
+            </div>
+            <div>
+              <label>姓名 <b>*</b></label>
+              <input type="text" id="pf-name" placeholder="如 张三" autocomplete="off">
+            </div>
+            <div class="full">
+              <label>证书名称 <b>*</b></label>
+              <input type="text" id="pf-cert" placeholder="如 全国大学生英语竞赛 NECCS 三等奖" autocomplete="off">
+            </div>
+            <div>
+              <label>级别</label>
+              <select id="pf-level">
+                <option value="">— 不限 —</option>
+                <option value="国家级">国家级</option>
+                <option value="省市级">省市级</option>
+                <option value="校级">校级</option>
+                <option value="院级">院级</option>
+                <option value="市级">市级</option>
+                <option value="区级">区级</option>
+              </select>
+            </div>
+            <div>
+              <label>奖项 / 名次</label>
+              <select id="pf-award">
+                <option value="">— 不限 —</option>
+                <option value="特等奖">特等奖</option>
+                <option value="一等奖">一等奖</option>
+                <option value="二等奖">二等奖</option>
+                <option value="三等奖">三等奖</option>
+                <option value="优秀奖">优秀奖</option>
+                <option value="第一名">第一名</option>
+                <option value="第二名">第二名</option>
+                <option value="第三名">第三名</option>
+                <option value="冠军">冠军</option>
+                <option value="亚军">亚军</option>
+                <option value="季军">季军</option>
+              </select>
+            </div>
+            <div>
+              <label>颁发单位</label>
+              <input type="text" id="pf-unit" placeholder="如 重庆工商大学" autocomplete="off">
+            </div>
+            <div>
+              <label>获奖日期</label>
+              <input type="text" id="pf-date" placeholder="2025-05" autocomplete="off">
+            </div>
+            <div class="full">
+              <label>备注</label>
+              <textarea id="pf-note" placeholder="如：项目成员第 3 / 校级优秀奖按校级一等奖算等"></textarea>
+            </div>
+            <div class="full">
+              <div class="badge-row">
+                <button class="ghost" id="btn-ocr" onclick="ocrCurrent()" title="首次加载约 15MB 中文模型，请稍候">🤖 智能识别（试验）</button>
+                <span class="hint" style="margin:0">OCR 识别结果仅供参考，证书务必人工核对</span>
+              </div>
+              <div class="ocr-progress" id="ocr-progress"><div></div></div>
+              <textarea class="ocr-result" id="ocr-result" placeholder="识别出的文字会显示在这里——你看着它填上面的表" readonly style="margin-top:6px;"></textarea>
+            </div>
+          </div>
+
+          <div class="toolbar" style="margin-top:14px">
+            <button class="primary" onclick="addPhotoCert()">＋ 加入列表</button>
+            <button onclick="clearPhotoForm()">清空表单</button>
+            <span class="hint" style="margin:0">填完一条就点「加入列表」，自动切到下一张</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 已录入列表 + 导出 -->
+    <div style="margin-top:24px; border-top:1px dashed var(--line); padding-top:18px;">
+      <div class="flex" style="justify-content:space-between; align-items:center; flex-wrap:wrap;">
+        <h3 style="font-family:KaiTi,serif; font-size:17px; letter-spacing:2px; color:var(--ink); font-weight:normal;">
+          已录入 <span id="photo-list-count">0</span> 条 <span class="hint" style="font-size:12px;">— 可发给班委统一导入</span>
+        </h3>
+        <div class="toolbar" style="margin:0">
+          <button class="primary" onclick="exportPhotoCsv()">⬇ 导出 CSV 发给班委</button>
+          <button onclick="importPhotoToMain()">📥 直接导入到本工具</button>
+          <button class="danger" onclick="clearPhotoList()">🗑 清空列表</button>
+        </div>
+      </div>
+      <div class="table-wrap photo-list-table" id="photo-list-wrap">
+        <table id="photo-list-table"></table>
+      </div>
+    </div>
   </section>
 
   <!-- ============ 证书明细 ============ -->
@@ -221,7 +408,7 @@
       <button class="primary" onclick="importCertsCsv()">导入证书 CSV</button>
       <button onclick="downloadTemplate('certs')">下载模板</button>
       <button onclick="reMatchAll()" title="规则改了以后重新匹配一遍">重新匹配</button>
-      <button class="ghost" onclick="loadDemoCerts()">载入示例证书</button>
+      <button onclick="confirmAllAuto()" title="把所有自动匹配的一键标记为已确认">✓ 一键全确认</button>
       <input class="search-input" id="cert-filter" placeholder="搜学号 / 姓名…" oninput="renderCerts()">
       <select id="cert-status-filter" onchange="renderCerts()" style="font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:#fdfaf1;">
         <option value="">全部状态</option>
@@ -665,7 +852,7 @@ var RULE_COLS = [
 var CERT_COLS = ['学号','姓名','证书名称','颁发单位','级别','奖项/名次','获奖日期','备注','置信度'];
 var CAT_ORDER_PREF = ['思想品德','学业','科研创新','文体','社会实践','志愿服务','工作担当','其他'];
 
-var state = load() || {rules:[], certs:[], caps:{}, seq:1};
+var state = load() || {rules:[], certs:[], caps:{}, seq:1, photos:[], photoCerts:[]};
 
 /* 首次访问：自动载入内置的重庆工商大学2026手册规则（64条，可随时导入CSV覆盖/追加） */
 if(!state.rules.length){
@@ -784,13 +971,14 @@ function certCat(c){
 /* ---------- Tab 切换 ---------- */
 function switchTab(name){
   document.querySelectorAll('nav.tabs button').forEach(function(b){ b.classList.toggle('active', b.dataset.tab===name); });
-  ['help','rules','certs','summary','pending','data'].forEach(function(t){
+  ['help','rules','certs','summary','pending','data','photo'].forEach(function(t){
     var el = $('tab-'+t); if(el) el.style.display = (t===name?'':'none');
   });
   if(name==='rules') renderRules();
   if(name==='certs') renderCerts();
   if(name==='summary') renderSummary();
   if(name==='pending') renderPending();
+  if(name==='photo'){ renderPhotoThumbs(); renderPhotoForm(); renderPhotoList(); }
   window.scrollTo({top:0, behavior:'smooth'});
 }
 document.querySelectorAll('nav.tabs button').forEach(function(b){
@@ -1003,6 +1191,14 @@ function confirmCert(i){
   if(!c.ruleId){ toast('请先在「匹配条款」里选一条规则', 3000); return; }
   c.status = 'confirmed'; save(); renderCerts(); renderPending(); toast('已确认：'+c['姓名']+' · '+c['证书名称']);
 }
+function confirmAllAuto(){
+  var autos = state.certs.filter(function(c){ return c.status === 'auto' && c.ruleId; });
+  if(!autos.length){ toast('没有可一键确认的「自动匹配」条目'); return; }
+  if(!confirm('把 '+autos.length+' 条「自动匹配」条目全部标记为已确认？\n（仅改状态，分值不变；驳回请逐条操作）')) return;
+  autos.forEach(function(c){ c.status = 'confirmed'; });
+  save(); renderCerts(); renderPending();
+  toast('已一键确认 '+autos.length+' 条', 2500);
+}
 function rejectCert(i){
   var c = state.certs[i];
   if(!confirm('驳回「'+c['姓名']+' · '+c['证书名称']+'」？该条将不计分。')) return;
@@ -1157,7 +1353,7 @@ function statusText(c){
 
 /* ---------- 数据包 ---------- */
 function exportPackage(){
-  download('综测数据包_'+Date.now()+'.json', JSON.stringify({v:1, rules:state.rules, certs:state.certs, caps:state.caps, seq:state.seq}, null, 1), 'application/json');
+  download('综测数据包_'+Date.now()+'.json', JSON.stringify({v:1, rules:state.rules, certs:state.certs, caps:state.caps, seq:state.seq, photos:state.photos||[], photoCerts:state.photoCerts||[]}, null, 1), 'application/json');
   toast('数据包已导出，注意保存');
 }
 function importPackage(file){
@@ -1165,7 +1361,7 @@ function importPackage(file){
     try{
       var p = JSON.parse(text);
       if(!p.rules || !Array.isArray(p.rules)) throw 0;
-      state = {rules:p.rules, certs:p.certs||[], caps:p.caps||{}, seq:p.seq||1000};
+      state = {rules:p.rules, certs:p.certs||[], caps:p.caps||{}, seq:p.seq||1000, photos:p.photos||[], photoCerts:p.photoCerts||[]};
       save(); renderAll(); switchTab('rules');
       toast('数据包已导入：规则 '+state.rules.length+' 条 · 证书 '+state.certs.length+' 张');
     }catch(e){ toast('文件不是有效的数据包 JSON', 3500); }
@@ -1195,51 +1391,427 @@ function clearAll(){
   toast('已清空');
 }
 
-/* ---------- 示例数据 ---------- */
-function loadDemoRules(){
-  if(state.rules.length && !confirm('已有 '+state.rules.length+' 条规则，追加示例规则？')) return;
-  var demo = [
-    {no:'学业-01', cat:'学业', name:'学科竞赛（国家级）', level:'国家级', award:'一等奖', score:'4', kws:'竞赛;大赛;challenge;挑战杯;互联网+', note:'示例分值，务必按本校细则修改'},
-    {no:'学业-02', cat:'学业', name:'学科竞赛（国家级）', level:'国家级', award:'二等奖', score:'3', kws:'竞赛;大赛;挑战杯;互联网+', note:''},
-    {no:'学业-03', cat:'学业', name:'学科竞赛（国家级）', level:'国家级', award:'三等奖', score:'2', kws:'竞赛;大赛;挑战杯;互联网+', note:''},
-    {no:'学业-04', cat:'学业', name:'学科竞赛（省级）', level:'省级', award:'一等奖', score:'2.5', kws:'竞赛;大赛', note:''},
-    {no:'学业-05', cat:'学业', name:'英语四六级（CET）', level:'', award:'六级', score:'1', kws:'CET;大学英语;四六级', note:''},
-    {no:'文体-01', cat:'文体', name:'文体比赛（校级）', level:'校级', award:'第一名;冠军;金奖', score:'1.5', kws:'运动会;篮球;足球;排球;合唱;舞蹈;晚会;歌手', note:''},
-    {no:'文体-02', cat:'文体', name:'文体比赛（校级）', level:'校级', award:'第二名;亚军;银奖', score:'1', kws:'运动会;篮球;足球;排球;合唱;舞蹈;晚会;歌手', note:''},
-    {no:'文体-03', cat:'文体', name:'文体比赛（校级）', level:'校级', award:'第三名;季军;铜奖', score:'0.5', kws:'运动会;篮球;足球;排球;合唱;舞蹈;晚会;歌手', note:''},
-    {no:'志服-01', cat:'志愿服务', name:'志愿服务活动', level:'', award:'', score:'0.5', kws:'志愿者;志愿服务;义卖;支教;社区服务', note:'按次计；时长折算请人工覆盖分值'},
-    {no:'实践-01', cat:'社会实践', name:'社会实践先进个人', level:'校级', award:'', score:'1', kws:'社会实践;三下乡;先进个人', note:''},
-    {no:'品德-01', cat:'思想品德', name:'优秀学生/优秀团员', level:'校级', award:'', score:'1', kws:'优秀学生;优秀团员;三好学生;优秀干部', note:''},
-    {no:'品德-02', cat:'思想品德', name:'优秀学生（院级）', level:'院级', award:'', score:'0.5', kws:'优秀学生;优秀团员', note:''},
-  ];
-  demo.forEach(function(d){ state.rules.push(Object.assign({id:uid()}, d)); });
-  save(); renderRules(); renderAll();
-  toast('示例规则已载入（12 条）。这是通用示例，分值必须按你们细则改！');
+/* ---------- 示例数据（已移除，按用户要求只保留真实数据） ---------- */
+function loadDemoRules(){ toast('示例规则已移除；本工具已内置 64 条学生手册 2026 规则'); }
+function loadDemoCerts(){ toast('示例证书已移除；点「拍照录入」录入你自己的证书'); }
+function loadDemo(){ toast('示例数据已移除'); }
+
+/* =========================================================
+ * 拍照录入 · 上传照片 → 看图填表 → 导出 CSV / 直接导入主工具
+ * ========================================================= */
+var _photoCurrent = null;          // 当前选中的图片 id
+var _photoTesseract = null;        // Tesseract.js 懒加载实例
+
+function getPhotoId(){ return 'p' + (state.seq++); }
+
+/* ---------- 上传图片（带自动压缩） ---------- */
+function handlePhotoFiles(files){
+  if(!files || !files.length) return;
+  var valid = ['image/jpeg','image/png','image/webp','image/jpg'];
+  Array.from(files).forEach(function(f){
+    if(!valid.includes(f.type) && !/\.(jpe?g|png|webp)$/i.test(f.name)){
+      toast('已跳过非图片文件：'+f.name, 3000);
+      return;
+    }
+    if(f.size > 8 * 1024 * 1024){
+      toast('已跳过过大图片（>8MB）：'+f.name+'，请用手机自带编辑器压缩后再传', 3500);
+      return;
+    }
+    compressImage(f, function(dataUrl){
+      var photo = {id: getPhotoId(), name: f.name, dataUrl: dataUrl, size: dataUrl.length, added: false};
+      state.photos.push(photo);
+      save();
+      if(!_photoCurrent) _photoCurrent = photo.id;
+      renderPhotoThumbs();
+      renderPhotoForm();
+    }, function(err){
+      toast('图片读取失败：'+err, 3500);
+    });
+  });
 }
-function loadDemoCerts(){
-  if(state.certs.length && !confirm('已有 '+state.certs.length+' 条证书，追加示例证书？')) return;
-  var demo = [
-    {'学号':'20240001','姓名':'张三','证书名称':'全国大学生英语竞赛（NECCS）三等奖','颁发单位':'高等学校大学外语教学指导委员会','级别':'国家级','奖项/名次':'三等奖','获奖日期':'2025-05','备注':'','置信度':'高'},
-    {'学号':'20240001','姓名':'张三','证书名称':'校运动会男子100米第一名','颁发单位':'重庆工商大学','级别':'校级','奖项/名次':'第一名','获奖日期':'2025-04','备注':'','置信度':'高'},
-    {'学号':'20240002','姓名':'李四','证书名称':'“挑战杯”大学生创业计划竞赛省级二等奖','颁发单位':'共青团重庆市委','级别':'省级','奖项/名次':'二等奖','获奖日期':'2025-06','备注':'','置信度':'高'},
-    {'学号':'20240002','姓名':'李四','证书名称':'“挑战杯”大学生创业计划竞赛省级二等奖','颁发单位':'共青团重庆市委','级别':'省级','奖项/名次':'二等奖','获奖日期':'2025-06','备注':'重复提交测试','置信度':'高'},
-    {'学号':'20240003','姓名':'王五','证书名称':'XX市马拉松志愿服务证书','颁发单位':'XX市青年志愿者协会','级别':'市级','奖项/名次':'','获奖日期':'2025-03','备注':'','置信度':'中'},
-    {'学号':'20240004','姓名':'赵六','证书名称':'（照片反光看不清）','颁发单位':'','级别':'','奖项/名次':'','获奖日期':'','备注':'需要重新拍照','置信度':'低'},
-  ];
-  demo.forEach(function(d){ state.certs.push(Object.assign({id:'r'+(state.seq++), status:'pending', ruleId:null}, d)); });
-  reMatchAll(); switchTab('certs');
-  toast('示例证书已载入（6 条），含重复与待确认场景');
+
+/* 压缩图片：最长边 1600px，JPEG 质量 0.82 */
+function compressImage(file, ok, fail){
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var MAX = 1600;
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var scale = Math.min(1, MAX / Math.max(w, h));
+      var cw = Math.round(w * scale), ch = Math.round(h * scale);
+      var canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.drawImage(img, 0, 0, cw, ch);
+      try{
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        ok(dataUrl);
+      } catch(err){
+        // CORS 等情况：退回原图 dataURL
+        ok(e.target.result);
+      }
+    };
+    img.onerror = function(){ fail('图片解码失败'); };
+    img.src = e.target.result;
+  };
+  reader.onerror = function(){ fail('文件读取失败'); };
+  reader.readAsDataURL(file);
 }
-function loadDemo(){
-  loadDemoRules(); loadDemoCerts();
+
+/* ---------- 渲染缩略图 ---------- */
+function renderPhotoThumbs(){
+  var html = state.photos.map(function(p, i){
+    var doneCls = p.added ? ' done' : '';
+    var activeCls = (p.id === _photoCurrent) ? ' active' : '';
+    return '<div class="photo-thumb'+activeCls+doneCls+'" onclick="selectPhoto(\''+p.id+'\')" data-id="'+p.id+'">'
+      + '<img src="'+p.dataUrl+'" alt="">'
+      + '<span class="num">'+(i+1)+(p.added?' ✓':'')+'</span>'
+      + '<button class="del" onclick="event.stopPropagation();deletePhoto(\''+p.id+'\')" title="删除">×</button>'
+      + '</div>';
+  }).join('');
+  $('photo-thumbs').innerHTML = html;
+  $('photo-count').textContent = state.photos.length;
+  $('photo-done').textContent = state.photos.filter(function(p){return p.added;}).length;
+}
+
+/* ---------- 切换当前图片 ---------- */
+function selectPhoto(id){
+  _photoCurrent = id;
+  clearPhotoForm(false);
+  renderPhotoThumbs();
+  renderPhotoForm();
+}
+
+/* ---------- 删除图片 ---------- */
+function deletePhoto(id){
+  state.photos = state.photos.filter(function(p){ return p.id !== id; });
+  // 已用此图录入的 cert 标记孤儿（保留）
+  state.photoCerts.forEach(function(c){ if(c._photoId === id) c._photoId = null; });
+  if(_photoCurrent === id){
+    _photoCurrent = state.photos.length ? state.photos[0].id : null;
+    clearPhotoForm(false);
+  }
+  save();
+  renderPhotoThumbs();
+  renderPhotoForm();
+  renderPhotoList();
+  toast('已删除');
+}
+
+/* ---------- 渲染当前图片填表区 ---------- */
+function renderPhotoForm(){
+  var cur = state.photos.find(function(p){ return p.id === _photoCurrent; });
+  if(!cur){
+    $('photo-empty').style.display = '';
+    $('photo-form-wrap').style.display = 'none';
+    return;
+  }
+  $('photo-empty').style.display = 'none';
+  $('photo-form-wrap').style.display = '';
+  $('photo-preview').src = cur.dataUrl;
+  $('photo-current-name').textContent = '📷 '+cur.name+' · '+Math.round(cur.size/1024)+' KB · 点击左侧其它缩略图切换';
+}
+
+/* ---------- 表单字段读取/清空 ---------- */
+function readPhotoForm(){
+  return {
+    '学号': $('pf-sid').value.trim(),
+    '姓名': $('pf-name').value.trim(),
+    '证书名称': $('pf-cert').value.trim(),
+    '颁发单位': $('pf-unit').value.trim(),
+    '级别': $('pf-level').value,
+    '奖项/名次': $('pf-award').value,
+    '获奖日期': $('pf-date').value.trim(),
+    '备注': $('pf-note').value.trim(),
+    '置信度': '高'  // 人工录入视为高
+  };
+}
+function fillPhotoForm(c){
+  $('pf-sid').value = c['学号'] || '';
+  $('pf-name').value = c['姓名'] || '';
+  $('pf-cert').value = c['证书名称'] || '';
+  $('pf-unit').value = c['颁发单位'] || '';
+  $('pf-level').value = c['级别'] || '';
+  $('pf-award').value = c['奖项/名次'] || '';
+  $('pf-date').value = c['获奖日期'] || '';
+  $('pf-note').value = c['备注'] || '';
+}
+function clearPhotoForm(alsoCurrent){
+  $('pf-sid').value = '';
+  $('pf-name').value = '';
+  $('pf-cert').value = '';
+  $('pf-unit').value = '';
+  $('pf-level').value = '';
+  $('pf-award').value = '';
+  $('pf-date').value = '';
+  $('pf-note').value = '';
+  $('ocr-result').value = '';
+  $('ocr-progress').classList.remove('on');
+  $('ocr-progress').firstChild.style.width = '0%';
+  if(alsoCurrent !== false){
+    // 自动跳到下一张未录入的图片
+    var next = state.photos.find(function(p){ return !p.added && p.id !== _photoCurrent; });
+    if(next){
+      selectPhoto(next.id);
+    } else {
+      // 全部录完：清掉当前选中，右侧回到空状态
+      _photoCurrent = null;
+      renderPhotoThumbs();
+      renderPhotoForm();
+    }
+  }
+}
+
+/* ---------- 加入列表 ---------- */
+function addPhotoCert(){
+  var f = readPhotoForm();
+  if(!f['学号']){ toast('学号必填'); $('pf-sid').focus(); return; }
+  if(!f['姓名']){ toast('姓名必填'); $('pf-name').focus(); return; }
+  if(!f['证书名称']){ toast('证书名称必填'); $('pf-cert').focus(); return; }
+  var rec = Object.assign({
+    _id: 'pc' + (state.seq++),
+    _photoId: _photoCurrent,
+    _created: Date.now()
+  }, f);
+  state.photoCerts.push(rec);
+  // 标记图片为已录入
+  var cur = state.photos.find(function(p){ return p.id === _photoCurrent; });
+  if(cur) cur.added = true;
+  save();
+  renderPhotoList();
+  renderPhotoThumbs();
+  toast('已加入列表（'+state.photoCerts.length+' 条）');
+  clearPhotoForm(true);
+}
+
+/* ---------- 编辑/删除已录入条目 ---------- */
+function editPhotoCert(id){
+  var c = state.photoCerts.find(function(x){ return x._id === id; });
+  if(!c) return;
+  if(c._photoId){
+    _photoCurrent = c._photoId;
+    renderPhotoThumbs();
+    renderPhotoForm();
+  }
+  fillPhotoForm(c);
+  // 把编辑态标记为临时
+  state.photoCerts = state.photoCerts.filter(function(x){ return x._id !== id; });
+  // 对应图片撤销"已录入"标记，重新可加入
+  var cur = state.photos.find(function(p){ return p.id === _photoCurrent; });
+  if(cur) cur.added = false;
+  save();
+  renderPhotoList();
+  renderPhotoThumbs();
+  toast('已载入到表单，修改后点「＋ 加入列表」');
+}
+function deletePhotoCert(id){
+  if(!confirm('确定从列表删除这一条？')) return;
+  var c = state.photoCerts.find(function(x){ return x._id === id; });
+  state.photoCerts = state.photoCerts.filter(function(x){ return x._id !== id; });
+  // 若没有其它 cert 引用此图，撤销"已录入"标记
+  if(c && c._photoId){
+    var stillRef = state.photoCerts.some(function(x){ return x._photoId === c._photoId; });
+    if(!stillRef){
+      var p = state.photos.find(function(pp){ return pp.id === c._photoId; });
+      if(p) p.added = false;
+    }
+  }
+  save();
+  renderPhotoList();
+  renderPhotoThumbs();
+  toast('已删除');
+}
+
+/* ---------- 渲染已录入列表 ---------- */
+function renderPhotoList(){
+  var html = state.photoCerts.map(function(c, i){
+    var thumb = '';
+    if(c._photoId){
+      var p = state.photos.find(function(pp){ return pp.id === c._photoId; });
+      if(p) thumb = '<img src="'+p.dataUrl+'" style="width:36px;height:36px;border-radius:4px;object-fit:cover;border:1px solid var(--line);">';
+    }
+    return '<tr>'
+      +'<td>'+(i+1)+'</td>'
+      +'<td>'+thumb+'</td>'
+      +'<td>'+esc(c['学号'])+'</td>'
+      +'<td>'+esc(c['姓名'])+'</td>'
+      +'<td style="max-width:280px">'+esc(c['证书名称'])+'</td>'
+      +'<td>'+esc(c['级别'])+'</td>'
+      +'<td>'+esc(c['奖项/名次'])+'</td>'
+      +'<td>'+esc(c['获奖日期'])+'</td>'
+      +'<td style="white-space:nowrap"><button class="mini" onclick="editPhotoCert(\''+c._id+'\')">编辑</button> <button class="mini danger" onclick="deletePhotoCert(\''+c._id+'\')">删</button></td>'
+      +'</tr>';
+  }).join('');
+  var head = '<thead><tr><th>#</th><th>图</th><th>学号</th><th>姓名</th><th>证书名称</th><th>级别</th><th>奖项/名次</th><th>日期</th><th>操作</th></tr></thead>';
+  $('photo-list-table').innerHTML = head + (html || '<tr><td colspan="9" class="empty">还没有录入条目。在上方填表 → 点「＋ 加入列表」</td></tr>');
+  $('photo-list-count').textContent = state.photoCerts.length;
+}
+
+/* ---------- 导出 CSV ---------- */
+function exportPhotoCsv(){
+  if(!state.photoCerts.length){ toast('列表为空，没东西可导出'); return; }
+  var rows = [CERT_COLS].concat(state.photoCerts.map(function(c){
+    return CERT_COLS.map(function(k){ return c[k] || ''; });
+  }));
+  var csv = XlsxLib.toCsv(rows);
+  var name = '证书录入_'+(state.photoCerts[0]['姓名']||'匿名')+'_'+state.photoCerts.length+'张_'+ymd()+'.csv';
+  download(name, csv, 'text/csv;charset=utf-8');
+  toast('CSV 已导出，请发给班委');
+}
+
+function ymd(){
+  var d = new Date();
+  return d.getFullYear()+''+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+}
+
+/* ---------- 直接导入主工具 ---------- */
+function importPhotoToMain(){
+  if(!state.photoCerts.length){ toast('列表为空'); return; }
+  if(!confirm('把 '+state.photoCerts.length+' 条拍照录入的证书导入到主工具，自动跑规则匹配？')) return;
+  var added = 0;
+  state.photoCerts.forEach(function(p){
+    var c = {id:'r'+(state.seq++), status:'pending', ruleId:null};
+    CERT_COLS.forEach(function(k){ c[k] = p[k] || ''; });
+    state.certs.push(c);
+    added++;
+  });
+  reMatchAll();
+  save();
   switchTab('certs');
-  toast('示例数据已载入，随便点点感受一下');
+  toast('已导入 '+added+' 条到主工具，已自动匹配规则');
+}
+
+/* ---------- 清空列表 ---------- */
+function clearPhotoList(){
+  if(!state.photoCerts.length){ toast('列表已经是空的'); return; }
+  if(!confirm('清空 '+state.photoCerts.length+' 条已录入证书？\n（不会删除已上传的图片）')) return;
+  state.photoCerts = [];
+  state.photos.forEach(function(p){ p.added = false; });
+  save();
+  renderPhotoList();
+  renderPhotoThumbs();
+  toast('已清空');
+}
+
+/* ---------- OCR（懒加载 Tesseract.js） ---------- */
+function ocrCurrent(){
+  var cur = state.photos.find(function(p){ return p.id === _photoCurrent; });
+  if(!cur){ toast('先选一张图片'); return; }
+  var btn = $('btn-ocr');
+  btn.disabled = true;
+  btn.textContent = '⏳ 加载识别引擎...';
+  $('ocr-progress').classList.add('on');
+  $('ocr-progress').firstChild.style.width = '0%';
+  $('ocr-result').value = '';
+  loadTesseract(function(){
+    if(!_photoTesseract){ btn.disabled = false; btn.textContent = '🤖 智能识别（试验）'; return; }
+    btn.textContent = '⏳ 识别中...';
+    _photoTesseract.recognize(cur.dataUrl, 'chi_sim+eng', {
+      logger: function(m){
+        if(m.status === 'recognizing text'){
+          $('ocr-progress').firstChild.style.width = Math.round(m.progress*100)+'%';
+        } else if(m.status){
+          btn.textContent = '⏳ '+m.status+'...';
+        }
+      }
+    }).then(function(res){
+      var text = res.data.text || '';
+      $('ocr-result').value = text;
+      $('ocr-progress').firstChild.style.width = '100%';
+      btn.disabled = false;
+      btn.textContent = '🤖 智能识别（试验）';
+      // 启发式填表：从识别结果里抓"姓名 / 学号 / 等级"
+      autoFillFromOcr(text);
+      toast('识别完成，请人工核对后再加列表', 2500);
+    }).catch(function(err){
+      btn.disabled = false;
+      btn.textContent = '🤖 智能识别（试验）';
+      $('ocr-progress').classList.remove('on');
+      toast('识别失败：'+(err.message||err), 4000);
+    });
+  });
+}
+function loadTesseract(cb){
+  if(window.Tesseract){ _photoTesseract = window.Tesseract; cb(); return; }
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js';
+  s.onload = function(){
+    _photoTesseract = window.Tesseract;
+    cb();
+  };
+  s.onerror = function(){
+    toast('OCR 引擎加载失败（可能是网络问题），不影响手动填表', 4000);
+    cb();
+  };
+  document.head.appendChild(s);
+}
+function autoFillFromOcr(text){
+  if(!text) return;
+  // 学号：8 位数字开头
+  var sidMatch = text.match(/\b(20\d{6})\b/);
+  if(sidMatch && !$('pf-sid').value) $('pf-sid').value = sidMatch[1];
+  // 姓名：2-4 个汉字（在"姓名"二字附近）—— 太复杂先不做
+  // 等级关键词
+  if(!$('pf-level').value){
+    if(/国家级|全国/.test(text)) $('pf-level').value = '国家级';
+    else if(/省级|省|部级/.test(text)) $('pf-level').value = '省市级';
+    else if(/市级/.test(text)) $('pf-level').value = '市级';
+    else if(/校级|\b校\b/.test(text)) $('pf-level').value = '校级';
+    else if(/院级|\b院\b/.test(text)) $('pf-level').value = '院级';
+  }
+  // 等次
+  if(!$('pf-award').value){
+    var m = text.match(/(特等奖|一等奖|二等奖|三等奖|优秀奖|第一名|第二名|第三名|冠军|亚军|季军|金奖|银奖|铜奖)/);
+    if(m) $('pf-award').value = m[1];
+  }
+  // 日期
+  if(!$('pf-date').value){
+    var dm = text.match(/(20\d{2})[\.\-\/年](\d{1,2})[\.\-\/月]?(\d{1,2})?/);
+    if(dm){
+      var y = dm[1], mo = String(dm[2]).padStart(2,'0'), d = dm[3] ? String(dm[3]).padStart(2,'0') : '';
+      $('pf-date').value = y+'-'+mo+(d?'-'+d:'');
+    }
+  }
+}
+
+/* ---------- 拍照录入页面初始化 ---------- */
+function bindPhotoUpload(){
+  // 点击上传
+  var drop = $('drop-photo');
+  var input = $('file-photo');
+  drop.addEventListener('click', function(){ input.click(); });
+  input.addEventListener('change', function(){ handlePhotoFiles(this.files); this.value=''; });
+  // 拖拽
+  drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.classList.add('drag'); });
+  drop.addEventListener('dragleave', function(){ drop.classList.remove('drag'); });
+  drop.addEventListener('drop', function(e){
+    e.preventDefault(); drop.classList.remove('drag');
+    handlePhotoFiles(e.dataTransfer.files);
+  });
+  // 整体接收拖拽
+  var formWrap = $('photo-form-wrap');
+  if(formWrap){
+    formWrap.addEventListener('dragover', function(e){ e.preventDefault(); });
+    formWrap.addEventListener('drop', function(e){
+      e.preventDefault();
+      handlePhotoFiles(e.dataTransfer.files);
+    });
+  }
+  // 首次进入如果有照片，默认选第一张
+  if(state.photos.length && !_photoCurrent) _photoCurrent = state.photos[0].id;
+  renderPhotoThumbs();
+  renderPhotoForm();
+  renderPhotoList();
 }
 function renderAll(){
   if($('tab-rules').style.display==='') renderRules();
   if($('tab-certs').style.display==='') renderCerts();
   if($('tab-summary').style.display==='') renderSummary();
   if($('tab-pending').style.display==='') renderPending();
+  if($('tab-photo') && $('tab-photo').style.display==='') { renderPhotoThumbs(); renderPhotoForm(); renderPhotoList(); }
 }
 
 /* ---------- 拖放 & 文件 ---------- */
@@ -1258,6 +1830,24 @@ $('file-package').onchange = function(){
 /* 页面加载即绑定证书导入事件——无论从哪个入口触发文件选择，选完即导入 */
 bindCertsCsv();
 
+/* 拍照录入 tab：拖拽 + 文件选择监听 */
+bindPhotoUpload();
+
+/* 一次性清理早期示例数据（20240001-20240004 的张三李四王五赵六是早期演示用，不再保留） */
+(function cleanupLegacyDemo(){
+  if(localStorage.getItem('zongce_cleanup_v2')) return;
+  var demoSids = ['20240001','20240002','20240003','20240004'];
+  var before = state.certs.length;
+  state.certs = state.certs.filter(function(c){
+    return !demoSids.includes(String(c['学号']||'').trim());
+  });
+  if(state.certs.length !== before){
+    save();
+    setTimeout(function(){ toast('已自动清理 '+(before-state.certs.length)+' 条早期示例数据'); }, 800);
+  }
+  localStorage.setItem('zongce_cleanup_v2','1');
+})();
+
 /* ---------- 入场动画 ---------- */
 var io = new IntersectionObserver(function(entries){
   entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
@@ -1267,12 +1857,17 @@ document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
 /* 首次访问提示 */
 if(!localStorage.getItem('zongce_seen')){
   setTimeout(function(){
-    if(!state.rules.length && !state.certs.length){
+    if(!state.rules.length && !state.certs.length && !state.photoCerts.length){
       var dlg = $('dlg');
-      $('dlg-body').innerHTML = '<h3>两步出结果 🌿</h3>'
-        +'<p style="color:#7a6d58"><b>① 导入证书 CSV</b> → 自动算分；<b>② 有疑问的证书在「待确认」点一下</b> → 「汇总导出」拿 Excel 交学院。规则已内置（学生手册2026 · 64条），不用导任何规则。</p>'
-        +'<p style="color:#7a6d58;font-size:12.5px;margin-top:6px">🔒 数据只存你自己的浏览器，不上传任何服务器。</p>'
-        +'<div class="flex" style="margin-top:14px;justify-content:flex-end"><button class="primary" onclick="document.getElementById(\'dlg\').close()">开始</button></div>';
+      $('dlg-body').innerHTML = '<h3>三步出结果 🌿</h3>'
+        +'<p style="color:#7a6d58;line-height:1.9"><b>同学路径</b>：<span style="color:#7d8f7a">📷 拍照录入</span> → 上传证书照片看图填表 → 一键导出 CSV 发给班委。<br>'
+        +'<b>班委路径</b>：<span style="color:#7d8f7a">① 导入证书 CSV</span> → 有疑问的到「② 待确认」点一下 → 「③ 汇总导出」拿 Excel 交学院。<br>'
+        +'<span style="font-size:12px;color:#8a7a5c">规则已内置（学生手册2026 · 64条），不用导任何规则。</span></p>'
+        +'<p style="color:#7a6d58;font-size:12.5px;margin-top:10px">🔒 数据只存你自己的浏览器，不上传任何服务器。</p>'
+        +'<div class="flex" style="margin-top:14px;justify-content:flex-end;gap:8px">'
+          +'<button onclick="document.getElementById(\'dlg\').close();switchTab(\'photo\')">📷 我是同学</button>'
+          +'<button class="primary" onclick="document.getElementById(\'dlg\').close()">我是班委</button>'
+        +'</div>';
       dlg.showModal();
       localStorage.setItem('zongce_seen','1');
     }
