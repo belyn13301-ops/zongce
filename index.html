@@ -855,7 +855,8 @@ function importRulesCsv(){
         if(r.no||r.name||r.kws){ state.rules.push(r); added++; }
       });
       save(); renderRules(); renderAll();
-      toast('导入规则 '+added+' 条'+(replaced?'（覆盖前清空）':''));
+      if(added) toast('导入规则 '+added+' 条'+(replaced?'（覆盖前清空）':''));
+      else toast('导入 0 条：表头对不上。首行需含「条款编号,类别,条款名称,级别,奖项/名次,分值,匹配关键词,备注」', 6500);
     });
     this.value='';
   };
@@ -887,7 +888,8 @@ function importCertsCsv(){
       });
       reMatchAll();
       switchTab('certs');
-      toast('导入证书 '+added+' 条，已自动匹配');
+      if(added) toast('导入证书 '+added+' 条，已自动匹配');
+      else toast('导入 0 条：表头对不上。首行需含「学号,姓名,证书名称,颁发单位,级别,奖项/名次,获奖日期,备注,置信度」。可先在「数据管理」下载模板对照', 6500);
     });
     this.value='';
   };
@@ -895,8 +897,25 @@ function importCertsCsv(){
 }
 function readFileText(file, cb){
   var fr = new FileReader();
-  fr.onload = function(){ cb(fr.result); };
-  fr.readAsText(file, 'UTF-8');
+  fr.onload = function(){
+    var bytes = new Uint8Array(fr.result), text;
+    // .xlsx 等二进制：zip 头 PK，直接拒并给明确指引
+    if(bytes[0]===0x50 && bytes[1]===0x4B){
+      toast('这个是 Excel 工作簿（.xlsx），工具只认 CSV。请在 Excel 里「另存为 → CSV UTF-8」再导入', 6000);
+      return;
+    }
+    if(bytes[0]===0xEF && bytes[1]===0xBB && bytes[2]===0xBF){          // UTF-8 BOM
+      text = new TextDecoder('utf-8').decode(bytes.subarray(3));
+    }else{
+      try{ text = new TextDecoder('utf-8', {fatal:true}).decode(bytes); } // 严格 UTF-8
+      catch(e){
+        try{ text = new TextDecoder('gbk').decode(bytes); }                // Excel 另存的 GBK/ANSI
+        catch(e2){ text = new TextDecoder('utf-8').decode(bytes); }       // 兜底
+      }
+    }
+    cb(text);
+  };
+  fr.readAsArrayBuffer(file);
 }
 
 /* ---------- 证书明细渲染 ---------- */
