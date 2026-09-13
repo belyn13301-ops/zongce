@@ -997,7 +997,7 @@ function renderRules(){
     }).join('');
     return '<tr>'+cells+'<td style="text-align:center"><button class="danger mini" onclick="delRule('+i+')">✕</button></td></tr>';
   }).join('');
-  t.innerHTML = head + (body || '<tr><td colspan="9" class="empty">还没有规则。已内置的重庆工商大学2026手册规则被清空了？点「导入规则CSV」重新导入，或点「载入示例规则」看结构。</td></tr>');
+  t.innerHTML = head + (body || '<tr><td colspan="9" class="empty">还没有规则。已内置的重庆工商大学2026手册规则被清空了？点「导入规则CSV」重新导入即可。</td></tr>');
 }
 function updRule(input){
   var r = state.rules[+input.dataset.ri];
@@ -1154,7 +1154,7 @@ function renderCerts(){
         +'<button class="mini ghost" onclick="resetCert('+i+')" title="重置为自动匹配">↺</button>'
       +'</td></tr>';
   });
-  $('certs-table').innerHTML = head + (rows || '<tr><td colspan="10" class="empty">还没有证书。点上方「导入证书 CSV」（不知道格式就先点「下载模板」），或点「载入示例证书」看看效果。</td></tr>');
+  $('certs-table').innerHTML = head + (rows || '<tr><td colspan="10" class="empty">还没有证书。点上方「导入证书CSV」（不知道格式就先点「下载模板」）。</td></tr>');
 }
 function stat(n, label){ return '<div class="stat"><div class="num">'+n+'</div><div class="lbl">'+label+'</div></div>'; }
 function ruleOptions(selId){
