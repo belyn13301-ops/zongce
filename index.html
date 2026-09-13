@@ -172,31 +172,30 @@
   </header>
 
   <nav class="tabs" id="tabs">
-    <button data-tab="help" class="active">使用说明</button>
+    <button data-tab="certs" class="active">① 导入证书</button>
+    <button data-tab="pending">② 待确认</button>
+    <button data-tab="summary">③ 汇总导出</button>
     <button data-tab="rules">规则对照表</button>
-    <button data-tab="certs">证书明细</button>
-    <button data-tab="summary">汇总核算</button>
-    <button data-tab="pending">待确认</button>
     <button data-tab="data">数据管理</button>
+    <button data-tab="help">使用说明</button>
   </nav>
 
   <!-- ============ 使用说明 ============ -->
-  <section class="card reveal" id="tab-help">
+  <section class="card reveal" id="tab-help" style="display:none">
     <h2 class="tab-title">怎么用 <span class="step">先读我</span></h2>
     <div class="note-box rose">综测涉及奖学金评定，本工具只做<b>归类建议与计算</b>，每一条加分都会标注依据条款，最终以班委复核与学院审定为准。</div>
     <div class="note-box" style="margin-top:10px">🔒 <b>隐私说明</b>：你录入的一切数据（姓名、学号、证书）只保存在<b>你自己的浏览器</b>里，不经过也不上传任何服务器——线上打开这个页面，和把文件拷到本机用，效果一样安全。相应地，换电脑、换浏览器数据不会跟过去，重要节点记得到「数据管理」导出数据包备份。</div>
     <ol style="margin:14px 0 0 24px;">
-      <li><b>第一步 · 喂规则</b>：到「规则对照表」，把你们学校的综测加分细则逐条录入（或用 CSV 导入）。规则表是算分的唯一依据，<b>录入后必须人工核对一遍</b>。</li>
-      <li><b>第二步 · 喂证书</b>：到「证书明细」，导入证书 CSV（由 AI 批量识别证书照片生成，模板见「数据管理」页）。工具会自动匹配规则、标出重复和存疑项。</li>
-      <li><b>第三步 · 复核</b>：到「待确认」处理多匹配/未匹配/疑似重复的条目——选条款、确认或驳回。<b>AI 只给建议，你拍板。</b></li>
-      <li><b>第四步 · 出表</b>：到「汇总核算」设置各类别封顶分，点「导出 Excel」，得到加分明细 + 按人汇总 + 待确认清单三张表。</li>
+      <li><b>第一步 · 导入证书</b>：到「① 导入证书」，导入证书 CSV（由 AI 批量识别证书照片生成，模板页内可下载）。规则已内置学生手册2026 的 64 条，<b>导入即自动算分</b>。</li>
+      <li><b>第二步 · 复核</b>：到「② 待确认」处理多匹配/未匹配/疑似重复的条目——选条款、确认或驳回。<b>AI 只给建议，你拍板。</b></li>
+      <li><b>第三步 · 出表</b>：到「③ 汇总导出」设置各类别封顶分，点「导出 Excel」，得到加分明细 + 按人汇总 + 待确认清单三张表。</li>
     </ol>
     <div class="note-box sage" style="margin-top:16px">
       <b>关于证书照片识别</b>：本工具不直接识别照片。把证书照片交给 AI（如 WorkBuddy）批量识别成 CSV 后导入本工具，识别流程见《班委操作手册》。识别置信度低的照片会自动标为「待确认」，不会瞎算。
     </div>
     <div style="margin-top:14px">
       <button class="primary" onclick="loadDemo()">载入示例数据，先试试手感</button>
-      <button class="ghost" onclick="switchTab('rules')">直接开始录规则 →</button>
+      <button class="primary" onclick="switchTab('certs')">去导入证书 →</button>
     </div>
   </section>
 
@@ -215,11 +214,12 @@
   </section>
 
   <!-- ============ 证书明细 ============ -->
-  <section class="card reveal" id="tab-certs" style="display:none">
-    <h2 class="tab-title">证书明细 <span class="step">第②步 · 识别结果进这里</span></h2>
-    <p class="hint">CSV 列：学号、姓名、证书名称、颁发单位、级别、奖项/名次、获奖日期、备注、置信度。<b>先在「规则对照表」把规则备好再导入</b>，导入时自动匹配。</p>
+  <section class="card reveal" id="tab-certs">
+    <h2 class="tab-title">① 导入证书 <span class="step">导入即自动算分</span></h2>
+    <p class="hint">规则已内置（学生手册2026 · 64条），<b>导入证书 CSV 就能直接出分</b>。CSV 列：学号、姓名、证书名称、颁发单位、级别、奖项/名次、获奖日期、备注、置信度。</p>
     <div class="toolbar">
       <button class="primary" onclick="document.getElementById('file-certs').click()">导入证书 CSV</button>
+      <button onclick="downloadTemplate('certs')">下载模板</button>
       <button onclick="reMatchAll()" title="规则改了以后重新匹配一遍">重新匹配</button>
       <button class="ghost" onclick="loadDemoCerts()">载入示例证书</button>
       <input class="search-input" id="cert-filter" placeholder="搜学号 / 姓名…" oninput="renderCerts()">
@@ -239,7 +239,7 @@
 
   <!-- ============ 汇总核算 ============ -->
   <section class="card reveal" id="tab-summary" style="display:none">
-    <h2 class="tab-title">汇总核算 <span class="step">第③步 · 出总账</span></h2>
+    <h2 class="tab-title">③ 汇总导出 <span class="step">出总账 · 交学院</span></h2>
     <p class="hint">只统计「自动匹配 + 已确认」的条目；驳回与疑似重复不计分。各类别封顶分在下面自己填，留空 = 不封顶。</p>
     <div class="toolbar">
       <button class="primary" onclick="exportExcel()">⬇ 导出 Excel（三张表）</button>
@@ -253,7 +253,7 @@
 
   <!-- ============ 待确认 ============ -->
   <section class="card reveal" id="tab-pending" style="display:none">
-    <h2 class="tab-title">待确认清单 <span class="step">第④步 · 你拍板</span></h2>
+    <h2 class="tab-title">② 待确认 <span class="step">有疑问的 · 你拍板</span></h2>
     <p class="hint">这里是所有需要人工过目的条目：匹配到多条规则、没匹配到规则、照片模糊、疑似重复提交。逐条选条款并确认，处理完这张清单，汇总就是准的。</p>
     <div id="pending-list" class="confirm-list"></div>
   </section>
@@ -963,7 +963,7 @@ function renderCerts(){
         +'<button class="mini ghost" onclick="resetCert('+i+')" title="重置为自动匹配">↺</button>'
       +'</td></tr>';
   });
-  $('certs-table').innerHTML = head + (rows || '<tr><td colspan="10" class="empty">还没有证书。从「数据管理」下载模板，或点上方「载入示例证书」。</td></tr>');
+  $('certs-table').innerHTML = head + (rows || '<tr><td colspan="10" class="empty">还没有证书。点上方「导入证书 CSV」（不知道格式就先点「下载模板」），或点「载入示例证书」看看效果。</td></tr>');
 }
 function stat(n, label){ return '<div class="stat"><div class="num">'+n+'</div><div class="lbl">'+label+'</div></div>'; }
 function ruleOptions(selId){
@@ -1263,10 +1263,9 @@ if(!localStorage.getItem('zongce_seen')){
   setTimeout(function(){
     if(!state.rules.length && !state.certs.length){
       var dlg = $('dlg');
-      $('dlg-body').innerHTML = '<h3>你好，班委 🌿</h3>'
-        +'<p style="color:#7a6d58">综测评算台会替你把证书归类、算分、查重——但每一条加分的依据条款都会写明白，最终拍板的还是你。</p>'
-        +'<p style="color:#7a6d58;font-size:12.5px;margin-top:6px">🔒 你的数据只存在你自己的浏览器里，不上传任何服务器。</p>'
-        +'<ol><li>先到「使用说明」看一眼流程</li><li>规则表已内置《重庆工商大学学生手册2026》64条综测加分规则（B类竞赛等缺口见「规则对照表」备注）</li><li>导入证书 CSV → 处理「待确认」→ 导出 Excel</li></ol>'
+      $('dlg-body').innerHTML = '<h3>两步出结果 🌿</h3>'
+        +'<p style="color:#7a6d58"><b>① 导入证书 CSV</b> → 自动算分；<b>② 有疑问的证书在「待确认」点一下</b> → 「汇总导出」拿 Excel 交学院。规则已内置（学生手册2026 · 64条），不用导任何规则。</p>'
+        +'<p style="color:#7a6d58;font-size:12.5px;margin-top:6px">🔒 数据只存你自己的浏览器，不上传任何服务器。</p>'
         +'<div class="flex" style="margin-top:14px;justify-content:flex-end"><button class="primary" onclick="document.getElementById(\'dlg\').close()">开始</button></div>';
       dlg.showModal();
       localStorage.setItem('zongce_seen','1');
