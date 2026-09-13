@@ -218,7 +218,7 @@
     <h2 class="tab-title">① 导入证书 <span class="step">导入即自动算分</span></h2>
     <p class="hint">规则已内置（学生手册2026 · 64条），<b>导入证书 CSV 就能直接出分</b>。CSV 列：学号、姓名、证书名称、颁发单位、级别、奖项/名次、获奖日期、备注、置信度。</p>
     <div class="toolbar">
-      <button class="primary" onclick="document.getElementById('file-certs').click()">导入证书 CSV</button>
+      <button class="primary" onclick="importCertsCsv()">导入证书 CSV</button>
       <button onclick="downloadTemplate('certs')">下载模板</button>
       <button onclick="reMatchAll()" title="规则改了以后重新匹配一遍">重新匹配</button>
       <button class="ghost" onclick="loadDemoCerts()">载入示例证书</button>
@@ -872,7 +872,7 @@ function exportRulesCsv(){
   );
   download('综测规则对照表.csv', XlsxLib.toCsv(rows), 'text/csv');
 }
-function importCertsCsv(){
+function bindCertsCsv(){
   $('file-certs').onchange = function(){
     var f = this.files[0]; if(!f) return;
     readFileText(f, function(text){
@@ -893,6 +893,9 @@ function importCertsCsv(){
     });
     this.value='';
   };
+}
+function importCertsCsv(){
+  bindCertsCsv();
   $('file-certs').click();
 }
 function readFileText(file, cb){
@@ -1251,6 +1254,9 @@ dz.addEventListener('drop', function(e){
 $('file-package').onchange = function(){
   var f = this.files[0]; if(f) importPackage(f); this.value='';
 };
+
+/* 页面加载即绑定证书导入事件——无论从哪个入口触发文件选择，选完即导入 */
+bindCertsCsv();
 
 /* ---------- 入场动画 ---------- */
 var io = new IntersectionObserver(function(entries){
