@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>综测评算台 · 证书加分自动核算</title>
+<style>
+  :root{
+    --paper:#f6f0e3; --paper2:#efe6d3; --ink:#463c2e; --ink-light:#7a6d58;
+    --tea:#8a7a5c; --green:#7d8f7a; --bamboo:#9db5a0; --pink:#d8b8a8;
+    --line:#ddd0b6; --card:#fbf7ec; --danger:#b0715f; --ok:#6f8a6a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+    font-size:14px; line-height:1.7; min-height:100vh;
+  }
+  /* 胶片颗粒 */
+  .grain{
+    position:fixed; inset:0; pointer-events:none; z-index:9999; opacity:.045;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:28px 20px 80px;}
+
+  /* ---------- 头部 ---------- */
+  header.hero{ text-align:center; padding:34px 0 10px; animation:slowin 1.4s ease both;}
+  .hero h1{
+    font-family:"KaiTi","STKaiti","SimSun",serif; font-size:44px; letter-spacing:10px;
+    color:var(--ink); font-weight:400;
+  }
+  .hero .sub{
+    font-family:"KaiTi","STKaiti",serif; color:var(--ink-light); font-size:15px;
+    letter-spacing:3px; margin-top:6px;
+  }
+  .ink-divider{ display:block; margin:14px auto 0; width:340px; height:26px; opacity:.55;}
+
+  /* ---------- 纸片卡片 ---------- */
+  .card{
+    background:var(--card); border:1px solid var(--line);
+    border-radius:255px 14px 225px 14px/14px 225px 14px 255px;
+    padding:22px 26px; margin-top:22px;
+    box-shadow:2px 3px 10px rgba(120,100,60,.08);
+    transition:transform .8s ease, box-shadow .8s ease;
+    position:relative;
+  }
+  .card:hover{ transform:translateY(-2px); box-shadow:3px 6px 16px rgba(120,100,60,.14); }
+  .reveal{opacity:0; transform:translateY(18px); transition:opacity 1.1s ease, transform 1.1s ease;}
+  .reveal.in{opacity:1; transform:translateY(0);}
+  @keyframes slowin{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);}}
+
+  h2.tab-title{
+    font-family:"KaiTi","STKaiti",serif; font-size:22px; font-weight:400;
+    letter-spacing:4px; color:var(--ink); display:flex; align-items:center; gap:10px;
+  }
+  h2 .step{
+    font-size:12px; font-family:"Microsoft YaHei",sans-serif; letter-spacing:1px;
+    color:#fff; background:var(--tea); padding:2px 10px; border-radius:20px; font-weight:normal;
+  }
+  .hint{color:var(--ink-light); font-size:12.5px; margin-top:6px;}
+  .hint b{color:var(--danger);}
+
+  /* ---------- 按钮 ---------- */
+  button, .btn{
+    font-family:inherit; font-size:13px; color:var(--ink);
+    background:var(--paper2); border:1px solid var(--tea); border-radius:6px 10px 8px 12px;
+    padding:5px 14px; cursor:pointer; letter-spacing:1px; text-decoration:none; display:inline-block;
+    transition:all .25s ease; line-height:1.6; vertical-align:middle;
+  }
+  button:hover,.btn:hover{ background:#e7dcc2; box-shadow:1px 2px 6px rgba(120,100,60,.18); transform:translateY(-1px);}
+  button.primary{ background:var(--tea); color:#fdf9ef; font-weight:bold; }
+  button.primary:hover{ background:#79694a; }
+  button.danger{ border-color:var(--danger); color:var(--danger); background:transparent;}
+  button.danger:hover{ background:var(--pink); color:#8a4a38;}
+  button.ghost{ border-style:dashed; background:transparent; color:var(--ink-light);}
+  button.mini{ padding:2px 9px; font-size:12px; }
+  button:disabled{opacity:.4; cursor:not-allowed; transform:none;}
+  .toolbar{ display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 10px; align-items:center;}
+
+  /* ---------- 导航 ---------- */
+  nav.tabs{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin:18px 0 4px; animation:slowin 1.4s .2s ease both;}
+  nav.tabs button{
+    font-family:"KaiTi","STKaiti",serif; font-size:16px; letter-spacing:2px;
+    background:transparent; border:none; border-bottom:2px solid transparent; border-radius:0;
+    padding:6px 16px; color:var(--ink-light);
+  }
+  nav.tabs button.active{ color:var(--ink); border-bottom:2px solid var(--tea); font-size:17px;}
+  nav.tabs button:hover{ background:transparent; transform:none; box-shadow:none; color:var(--ink);}
+
+  /* ---------- 表格 ---------- */
+  .table-wrap{ overflow-x:auto; margin-top:10px; border:1px solid var(--line); border-radius:8px; background:#fdfaf1;}
+  table{ border-collapse:collapse; width:100%; min-width:900px; font-size:13px;}
+  th{
+    background:var(--paper2); color:var(--ink); font-weight:bold; text-align:left;
+    padding:8px 10px; border-bottom:2px solid var(--tea); white-space:nowrap; letter-spacing:1px;
+  }
+  td{ padding:6px 10px; border-bottom:1px dashed var(--line); vertical-align:middle;}
+  tr:hover td{ background:#f6eeda;}
+  td input, td select, td textarea{
+    font-family:inherit; font-size:13px; color:var(--ink); background:transparent;
+    border:none; border-bottom:1px dashed transparent; padding:3px 4px; width:100%; min-width:60px;
+  }
+  td input:focus, td select:focus{ outline:none; border-bottom:1px solid var(--tea); background:#fff9ec;}
+  td input[type=number]{width:64px;}
+  td textarea{resize:vertical; min-height:30px;}
+
+  /* ---------- 状态徽章 ---------- */
+  .badge{ display:inline-block; font-size:11.5px; padding:1px 9px; border-radius:12px; white-space:nowrap; letter-spacing:.5px;}
+  .b-auto{ background:#e3ecdf; color:#4e6a49;}
+  .b-ok{ background:#dcebe0; color:#3c6342; font-weight:bold;}
+  .b-pend{ background:#f3e3c8; color:#8a6a2c;}
+  .b-rej{ background:#ecd9d0; color:#96503c;}
+  .b-dup{ background:#e8e2d2; color:#7a6d58;}
+  .b-low{ background:#efe0e8; color:#8a5a72;}
+
+  /* ---------- 拖放区 ---------- */
+  .dropzone{
+    border:2px dashed var(--tea); border-radius:14px; padding:26px; text-align:center;
+    color:var(--ink-light); background:#faf5e6; transition:all .3s ease; cursor:pointer;
+  }
+  .dropzone:hover,.dropzone.drag{ background:#f2e9d2; border-color:var(--ink);}
+  .dropzone .big{ font-family:"KaiTi",serif; font-size:19px; color:var(--ink); letter-spacing:2px;}
+
+  /* ---------- 杂项 ---------- */
+  .empty{ text-align:center; color:var(--ink-light); padding:34px 0; font-family:"KaiTi",serif; font-size:15px; letter-spacing:2px;}
+  .stat-row{ display:flex; gap:16px; flex-wrap:wrap; margin:12px 0;}
+  .stat{ background:var(--paper2); border-radius:10px; padding:10px 18px; text-align:center; min-width:110px;}
+  .stat .num{ font-family:"KaiTi",serif; font-size:26px; color:var(--tea);}
+  .stat .lbl{ font-size:12px; color:var(--ink-light); letter-spacing:1px;}
+  .note-box{
+    background:#faf3df; border-left:3px solid var(--pink); border-radius:0 10px 10px 0;
+    padding:10px 16px; margin:12px 0; color:#6b5a48; font-size:13px;
+  }
+  .note-box.rose{ border-left-color:var(--pink);}
+  .note-box.sage{ border-left-color:var(--bamboo);}
+  footer{ text-align:center; margin-top:50px; color:var(--ink-light); font-size:12px; font-family:"KaiTi",serif; letter-spacing:2px; line-height:2;}
+  .flex{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .search-input{
+    font-family:inherit; font-size:13px; padding:4px 10px; border:1px solid var(--line);
+    border-radius:8px; background:#fdfaf1; color:var(--ink); width:180px;
+  }
+  .search-input:focus{outline:1px solid var(--tea);}
+  .mini-table td{white-space:nowrap;}
+  .confirm-list .card{padding:14px 18px; margin-top:12px;}
+  .kw-list{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0;}
+  .kw{ background:var(--paper2); border-radius:10px; padding:1px 10px; font-size:12px; color:#6b5a3a; cursor:pointer;}
+  .kw.active{ background:var(--tea); color:#fff;}
+  dialog{ border:none; border-radius:14px; padding:0; background:transparent;}
+  dialog::backdrop{ background:rgba(70,60,46,.35);}
+  .modal{ background:var(--card); border-radius:14px; padding:26px 30px; max-width:640px; border:1px solid var(--line);}
+  .modal h3{font-family:"KaiTi",serif; letter-spacing:3px; font-size:20px; margin-bottom:10px; font-weight:400;}
+  .modal ol{margin:10px 0 0 22px;}
+  .modal li{margin:7px 0;}
+  @media print{
+    nav.tabs,.toolbar,.grain,footer,.dropzone,button{display:none !important;}
+    body{background:#fff;}
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>综测评算台</h1>
+    <div class="sub">把一摞证书，算成一张明白账</div>
+    <svg class="ink-divider" viewBox="0 0 340 26" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 15 C 60 6, 120 20, 170 13 S 300 8, 336 15" stroke="#8a7a5c" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".8"/>
+      <path d="M40 20 C 110 26, 220 16, 300 21" stroke="#9db5a0" stroke-width="1" fill="none" stroke-linecap="round" opacity=".6"/>
+    </svg>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="help" class="active">使用说明</button>
+    <button data-tab="rules">规则对照表</button>
+    <button data-tab="certs">证书明细</button>
+    <button data-tab="summary">汇总核算</button>
+    <button data-tab="pending">待确认</button>
+    <button data-tab="data">数据管理</button>
+  </nav>
+
+  <!-- ============ 使用说明 ============ -->
+  <section class="card reveal" id="tab-help">
+    <h2 class="tab-title">怎么用 <span class="step">先读我</span></h2>
+    <div class="note-box rose">综测涉及奖学金评定，本工具只做<b>归类建议与计算</b>，每一条加分都会标注依据条款，最终以班委复核与学院审定为准。</div>
+    <div class="note-box" style="margin-top:10px">🔒 <b>隐私说明</b>：你录入的一切数据（姓名、学号、证书）只保存在<b>你自己的浏览器</b>里，不经过也不上传任何服务器——线上打开这个页面，和把文件拷到本机用，效果一样安全。相应地，换电脑、换浏览器数据不会跟过去，重要节点记得到「数据管理」导出数据包备份。</div>
+    <ol style="margin:14px 0 0 24px;">
+      <li><b>第一步 · 喂规则</b>：到「规则对照表」，把你们学校的综测加分细则逐条录入（或用 CSV 导入）。规则表是算分的唯一依据，<b>录入后必须人工核对一遍</b>。</li>
+      <li><b>第二步 · 喂证书</b>：到「证书明细」，导入证书 CSV（由 AI 批量识别证书照片生成，模板见「数据管理」页）。工具会自动匹配规则、标出重复和存疑项。</li>
+      <li><b>第三步 · 复核</b>：到「待确认」处理多匹配/未匹配/疑似重复的条目——选条款、确认或驳回。<b>AI 只给建议，你拍板。</b></li>
+      <li><b>第四步 · 出表</b>：到「汇总核算」设置各类别封顶分，点「导出 Excel」，得到加分明细 + 按人汇总 + 待确认清单三张表。</li>
+    </ol>
+    <div class="note-box sage" style="margin-top:16px">
+      <b>关于证书照片识别</b>：本工具不直接识别照片。把证书照片交给 AI（如 WorkBuddy）批量识别成 CSV 后导入本工具，识别流程见《班委操作手册》。识别置信度低的照片会自动标为「待确认」，不会瞎算。
+    </div>
+    <div style="margin-top:14px">
+      <button class="primary" onclick="loadDemo()">载入示例数据，先试试手感</button>
+      <button class="ghost" onclick="switchTab('rules')">直接开始录规则 →</button>
+    </div>
+  </section>
+
+  <!-- ============ 规则对照表 ============ -->
+  <section class="card reveal" id="tab-rules" style="display:none">
+    <h2 class="tab-title">规则对照表 <span class="step">第①步 · 算分的唯一依据</span></h2>
+    <p class="hint">把细则里「什么证书加几分」逐条搬进来。<b>每条规则填好「匹配关键词」</b>（分号分隔），工具靠它给证书对号入座。级别留空表示不限级别；奖项留空表示该条款不限名次。</p>
+    <div class="toolbar">
+      <button class="primary" onclick="addRule()">＋ 新增条款</button>
+      <button onclick="importRulesCsv()">导入规则 CSV</button>
+      <button onclick="exportRulesCsv()">导出规则 CSV</button>
+      <button class="ghost" onclick="loadDemoRules()">载入示例规则</button>
+      <input type="file" id="file-rules" accept=".csv,.txt" style="display:none">
+    </div>
+    <div class="table-wrap"><table id="rules-table"></table></div>
+  </section>
+
+  <!-- ============ 证书明细 ============ -->
+  <section class="card reveal" id="tab-certs" style="display:none">
+    <h2 class="tab-title">证书明细 <span class="step">第②步 · 识别结果进这里</span></h2>
+    <p class="hint">CSV 列：学号、姓名、证书名称、颁发单位、级别、奖项/名次、获奖日期、备注、置信度。<b>先在「规则对照表」把规则备好再导入</b>，导入时自动匹配。</p>
+    <div class="toolbar">
+      <button class="primary" onclick="document.getElementById('file-certs').click()">导入证书 CSV</button>
+      <button onclick="reMatchAll()" title="规则改了以后重新匹配一遍">重新匹配</button>
+      <button class="ghost" onclick="loadDemoCerts()">载入示例证书</button>
+      <input class="search-input" id="cert-filter" placeholder="搜学号 / 姓名…" oninput="renderCerts()">
+      <select id="cert-status-filter" onchange="renderCerts()" style="font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:#fdfaf1;">
+        <option value="">全部状态</option>
+        <option value="auto">自动匹配</option>
+        <option value="pending">待确认</option>
+        <option value="confirmed">已确认</option>
+        <option value="rejected">已驳回</option>
+        <option value="dup">疑似重复</option>
+      </select>
+      <input type="file" id="file-certs" accept=".csv,.txt" style="display:none">
+    </div>
+    <div class="stat-row" id="cert-stats"></div>
+    <div class="table-wrap"><table id="certs-table"></table></div>
+  </section>
+
+  <!-- ============ 汇总核算 ============ -->
+  <section class="card reveal" id="tab-summary" style="display:none">
+    <h2 class="tab-title">汇总核算 <span class="step">第③步 · 出总账</span></h2>
+    <p class="hint">只统计「自动匹配 + 已确认」的条目；驳回与疑似重复不计分。各类别封顶分在下面自己填，留空 = 不封顶。</p>
+    <div class="toolbar">
+      <button class="primary" onclick="exportExcel()">⬇ 导出 Excel（三张表）</button>
+      <button onclick="renderSummary()">刷新汇总</button>
+      <span class="hint" style="align-self:center;margin:0">导出即备份——Excel 存好，账就丢不了</span>
+    </div>
+    <div class="table-wrap"><table id="caps-table" class="mini-table"></table></div>
+    <div class="table-wrap" style="margin-top:14px"><table id="summary-table" class="mini-table"></table></div>
+    <div class="note-box" id="cap-notes" style="display:none"></div>
+  </section>
+
+  <!-- ============ 待确认 ============ -->
+  <section class="card reveal" id="tab-pending" style="display:none">
+    <h2 class="tab-title">待确认清单 <span class="step">第④步 · 你拍板</span></h2>
+    <p class="hint">这里是所有需要人工过目的条目：匹配到多条规则、没匹配到规则、照片模糊、疑似重复提交。逐条选条款并确认，处理完这张清单，汇总就是准的。</p>
+    <div id="pending-list" class="confirm-list"></div>
+  </section>
+
+  <!-- ============ 数据管理 ============ -->
+  <section class="card reveal" id="tab-data" style="display:none">
+    <h2 class="tab-title">数据管理 <span class="step">备份 · 模板 · 数据包</span></h2>
+    <div class="note-box">浏览器只把数据存在本机（localStorage）。<b>重要节点记得导出数据包备份</b>，换电脑或换浏览器时用数据包恢复。</div>
+    <div class="dropzone" onclick="document.getElementById('file-package').click()" id="drop-package">
+      <div class="big">导入数据包（JSON）</div>
+      <div style="font-size:12.5px">点击选择文件，或把 .json 文件拖到这里 · 用于换机 / 多人协作交接</div>
+      <input type="file" id="file-package" accept=".json" style="display:none">
+    </div>
+    <div class="toolbar" style="margin-top:16px">
+      <button class="primary" onclick="exportPackage()">⬇ 导出数据包（规则+证书+封顶）</button>
+      <button onclick="downloadTemplate('rules')">下载规则表模板 CSV</button>
+      <button onclick="downloadTemplate('certs')">下载证书明细模板 CSV</button>
+      <button class="danger" onclick="clearAll()">清空全部数据</button>
+    </div>
+  </section>
+
+  <footer>
+    综测评算台 · 每一条加分，都注明来处<br>
+    工具仅辅助核算 · 最终以班委复核与学院审定为准
+  </footer>
+</div>
+
+<!-- 通用弹窗 -->
+<dialog id="dlg"><div class="modal" id="dlg-body"></div></dialog>
+
+<script>
+/* ================== 核心库（已通过 Node + openpyxl 验证） ================== */
+/* 综测评算台 · 核心库：xlsxlib.js
+ * 纯 JS 零依赖 xlsx 生成器（ZIP store 模式）+ CSV 解析/序列化
+ * 双环境：Node (module.exports) / 浏览器 (window.XlsxLib)
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.XlsxLib = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  /* ---------- CRC32 ---------- */
+  var CRC_TABLE = (function () {
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+
+  function crc32(bytes) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  /* ---------- ZIP (store, no compression) ---------- */
+  function dosDateTime(d) {
+    if (!d) d = new Date();
+    var time = ((d.getHours() & 31) << 11) | ((d.getMinutes() & 63) << 5) | ((d.getSeconds() / 2) & 31);
+    var date = (((d.getFullYear() - 1980) & 127) << 9) | (((d.getMonth() + 1) & 15) << 5) | (d.getDate() & 31);
+    return { time: time, date: date };
+  }
+
+  /**
+   * files: [{ name: 'a.xml', data: Uint8Array }]
+   * returns Uint8Array (zip)
+   */
+  function buildZip(files) {
+    var enc = new TextEncoder();
+    var chunks = [];
+    var central = [];
+    var offset = 0;
+    var dt = dosDateTime(new Date());
+
+    files.forEach(function (f) {
+      var nameBytes = enc.encode(f.name);
+      var crc = crc32(f.data);
+      // local file header (30 bytes + name)
+      var lh = new Uint8Array(30 + nameBytes.length);
+      var v = new DataView(lh.buffer);
+      v.setUint32(0, 0x04034b50, true);   // signature
+      v.setUint16(4, 20, true);            // version needed
+      v.setUint16(6, 0, true);             // flags (ASCII names)
+      v.setUint16(8, 0, true);            // method: store
+      v.setUint16(10, dt.time, true);
+      v.setUint16(12, dt.date, true);
+      v.setUint32(14, crc, true);
+      v.setUint32(18, f.data.length, true); // compressed
+      v.setUint32(22, f.data.length, true); // uncompressed
+      v.setUint16(26, nameBytes.length, true);
+      v.setUint16(28, 0, true);            // extra len
+      lh.set(nameBytes, 30);
+      chunks.push(lh, f.data);
+
+      central.push({ nameBytes: nameBytes, crc: crc, size: f.data.length, offset: offset });
+      offset += lh.length + f.data.length;
+    });
+
+    // central directory
+    var cdStart = offset;
+    var cdTotal = 0;
+    central.forEach(function (e) {
+      var ch = new Uint8Array(46 + e.nameBytes.length);
+      var v = new DataView(ch.buffer);
+      v.setUint32(0, 0x02014b50, true);
+      v.setUint16(4, 20, true);   // version made by
+      v.setUint16(6, 20, true);   // version needed
+      v.setUint16(8, 0, true);
+      v.setUint16(10, 0, true);   // store
+      v.setUint16(12, dt.time, true);
+      v.setUint16(14, dt.date, true);
+      v.setUint32(16, e.crc, true);
+      v.setUint32(20, e.size, true);
+      v.setUint32(24, e.size, true);
+      v.setUint16(28, e.nameBytes.length, true);
+      // 30..45: extra/comment/disk/attrs all zero
+      v.setUint32(42, e.offset, true); // local header offset
+      ch.set(e.nameBytes, 46);
+      chunks.push(ch);
+      cdTotal += ch.length;
+    });
+
+    // EOCD
+    var eocd = new Uint8Array(22);
+    var ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, central.length, true);   // entries this disk
+    ev.setUint16(10, central.length, true);  // total entries
+    ev.setUint32(12, cdTotal, true);
+    ev.setUint32(16, cdStart, true);
+    chunks.push(eocd);
+
+    var total = 0;
+    chunks.forEach(function (c) { total += c.length; });
+    var out = new Uint8Array(total);
+    var p = 0;
+    chunks.forEach(function (c) { out.set(c, p); p += c.length; });
+    return out;
+  }
+
+  /* ---------- XML helpers ---------- */
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  }
+
+  function colName(n) { // 1 -> A
+    var s = '';
+    while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+    return s;
+  }
+
+  // 智能判断：纯数字 → 数值单元格（保留数字可求和）
+  function isNumeric(v) {
+    if (typeof v !== 'string') return typeof v === 'number' && isFinite(v);
+    if (v === '') return false;
+    return /^-?\d+(\.\d+)?$/.test(v.trim()) && v.trim().length < 16;
+  }
+
+  /**
+   * sheet: { name, rows: [[cell,...],...], headerBold: true, numericCols: [0-based 列索引] }
+   * 返回 sheet XML 字符串；仅 numericCols 声明的列按数值写入（学号等默认保持文本，防丢前导零/精度）
+   */
+  function sheetXml(sheet) {
+    var numericCols = sheet.numericCols || [];
+    var rows = sheet.rows || [];
+    var maxCol = 0;
+    rows.forEach(function (r) { if (r.length > maxCol) maxCol = r.length; });
+    // 列宽估算（中文按 2）
+    var widths = new Array(maxCol).fill(0);
+    rows.forEach(function (r) {
+      r.forEach(function (c, i) {
+        var s = String(c == null ? '' : c);
+        var w = 0;
+        for (var j = 0; j < s.length; j++) w += s.charCodeAt(j) > 255 ? 2 : 1;
+        if (w > widths[i]) widths[i] = w;
+      });
+    });
+    var colsXml = '';
+    if (maxCol > 0) {
+      colsXml = '<cols>' + widths.map(function (w, i) {
+        return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + Math.min(60, Math.max(8, w + 2)) + '" customWidth="1"/>';
+      }).join('') + '</cols>';
+    }
+    var body = rows.map(function (r, ri) {
+      var cells = r.map(function (c, ci) {
+        var ref = colName(ci + 1) + (ri + 1);
+        var style = (sheet.headerBold && ri === 0) ? ' s="1"' : '';
+        if (numericCols.indexOf(ci) >= 0 && isNumeric(c)) return '<c r="' + ref + '"' + style + '><v>' + Number(c) + '</v></c>';
+        return '<c r="' + ref + '"' + style + ' t="inlineStr"><is><t xml:space="preserve">' + esc(c) + '</t></is></c>';
+      }).join('');
+      return '<row r="' + (ri + 1) + '">' + cells + '</row>';
+    }).join('');
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      colsXml + '<sheetData>' + body + '</sheetData></worksheet>';
+  }
+
+  var STYLES_XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<fonts count="2"><font><sz val="11"/><name val="宋体"/></font>' +
+    '<font><b/><sz val="11"/><name val="宋体"/></font></fonts>' +
+    '<fills count="3"><fill><patternFill patternType="none"/></fill>' +
+    '<fill><patternFill patternType="gray125"/></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFF3E9DC"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+    '<borders count="1"><border/></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+    '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+    '</styleSheet>';
+
+  /**
+   * sheets: [{ name, rows, headerBold }]
+   * returns Uint8Array (xlsx)
+   */
+  function buildXlsx(sheets) {
+    var enc = new TextEncoder();
+    var n = sheets.length;
+    var overrides = sheets.map(function (s, i) {
+      return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+    }).join('');
+    var contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      overrides +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+      '</Types>';
+    var rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+      '</Relationships>';
+    var sheetTags = sheets.map(function (s, i) {
+      return '<sheet name="' + esc(s.name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>';
+    }).join('');
+    var workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+      'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<sheets>' + sheetTags + '</sheets></workbook>';
+    var wbRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      sheets.map(function (s, i) {
+        return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+      }).join('') +
+      '<Relationship Id="rId' + (n + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+      '</Relationships>';
+
+    var files = [
+      { name: '[Content_Types].xml', data: enc.encode(contentTypes) },
+      { name: '_rels/.rels', data: enc.encode(rels) },
+      { name: 'xl/workbook.xml', data: enc.encode(workbook) },
+      { name: 'xl/_rels/workbook.xml.rels', data: enc.encode(wbRels) },
+      { name: 'xl/styles.xml', data: enc.encode(STYLES_XML) }
+    ];
+    sheets.forEach(function (s, i) {
+      files.push({ name: 'xl/worksheets/sheet' + (i + 1) + '.xml', data: enc.encode(sheetXml(s)) });
+    });
+    return buildZip(files);
+  }
+
+  /* ---------- CSV ---------- */
+  function detectDelimiter(text) {
+    var line = text.split(/\r?\n/, 1)[0] || '';
+    var counts = { ',': 0, ';': 0, '\t': 0 };
+    var inQ = false;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line[i];
+      if (ch === '"') inQ = !inQ;
+      else if (!inQ && counts[ch] !== undefined) counts[ch]++;
+    }
+    var best = ',', max = -1;
+    Object.keys(counts).forEach(function (k) { if (counts[k] > max) { max = counts[k]; best = k; } });
+    return best;
+  }
+
+  /**
+   * 解析 CSV（兼容引号、换行、BOM、中英文分号）
+   * 返回 { header: [..], rows: [[..],..] }；无表头时 header 为 null（第二参 noHeader=true）
+   */
+  function parseCsv(text, noHeader) {
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    var delim = detectDelimiter(text);
+    var rows = [], row = [], field = '', inQ = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (inQ) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else inQ = false;
+        } else field += c;
+      } else {
+        if (c === '"') inQ = true;
+        else if (c === delim) { row.push(field); field = ''; }
+        else if (c === '\n' || c === '\r') {
+          if (c === '\r' && text[i + 1] === '\n') i++;
+          row.push(field); field = '';
+          if (row.length > 1 || row[0] !== '') rows.push(row);
+          row = [];
+        } else field += c;
+      }
+    }
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    if (!rows.length) return { header: null, rows: [] };
+    if (noHeader) return { header: null, rows: rows };
+    return { header: rows[0], rows: rows.slice(1) };
+  }
+
+  /** 序列化 CSV（带 BOM，Excel 中文环境直接打开不乱码） */
+  function toCsv(rows) {
+    return '\uFEFF' + rows.map(function (r) {
+      return r.map(function (c) {
+        var s = String(c == null ? '' : c);
+        if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+        return s;
+      }).join(',');
+    }).join('\r\n');
+  }
+
+  return { buildXlsx: buildXlsx, buildZip: buildZip, parseCsv: parseCsv, toCsv: toCsv, crc32: crc32 };
+});
+
+/* ================== 应用 ================== */
+
+var RULE_COLS = [
+  {key:'no',   name:'条款编号', w:90},
+  {key:'cat',  name:'类别',   w:90},
+  {key:'name', name:'条款名称', w:200},
+  {key:'level',name:'级别',   w:70},
+  {key:'award',name:'奖项/名次', w:130},
+  {key:'score',name:'分值',   w:55},
+  {key:'kws',  name:'匹配关键词', w:220},
+  {key:'note', name:'备注',   w:140},
+];
+var CERT_COLS = ['学号','姓名','证书名称','颁发单位','级别','奖项/名次','获奖日期','备注','置信度'];
+var CAT_ORDER_PREF = ['思想品德','学业','科研创新','文体','社会实践','志愿服务','工作担当','其他'];
+
+var state = load() || {rules:[], certs:[], caps:{}, seq:1};
+function save(){ try{ localStorage.setItem('zongce_v1', JSON.stringify(state)); }catch(e){} }
+function load(){ try{ return JSON.parse(localStorage.getItem('zongce_v1')); }catch(e){ return null; } }
+function uid(){ return 'r' + (state.seq++); }
+
+/* ---------- 工具函数 ---------- */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function norm(s){ return String(s==null?'':s).toLowerCase().replace(/\s+/g,''); }
+function splitKw(s){ return String(s==null?'':s).split(/[;；、,，\/]/).map(function(x){return x.trim();}).filter(Boolean); }
+function fmtScore(v){ var n = Number(v); return isFinite(n) ? n : ''; }
+function toast(msg, ms){
+  var d = document.createElement('div');
+  d.textContent = msg;
+  d.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);background:#463c2e;color:#f6f0e3;padding:9px 22px;border-radius:24px;z-index:10000;font-size:13.5px;letter-spacing:1px;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:0;transition:opacity .4s;';
+  document.body.appendChild(d);
+  requestAnimationFrame(function(){ d.style.opacity='1'; });
+  setTimeout(function(){ d.style.opacity='0'; setTimeout(function(){ d.remove(); }, 450); }, ms||2600);
+}
+function download(name, content, mime){
+  var blob = (content instanceof Blob) ? content : new Blob([content], {type: mime||'text/plain'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 800);
+}
+
+/* ---------- 匹配引擎 ---------- */
+function findMatches(cert){
+  var hay = norm(cert['证书名称'] + ' ' + cert['颁发单位']);
+  var certLevel = norm(cert['级别']);
+  var certAward = norm(cert['奖项/名次'] + ' ' + cert['证书名称']);
+  var out = [], notes = [];
+  state.rules.forEach(function(r){
+    var kws = splitKw(r.kws);
+    if(!kws.length) return;
+    if(!kws.some(function(k){ return hay.indexOf(norm(k)) >= 0; })) return;
+    if(r.level && certLevel && certLevel.indexOf(norm(r.level)) < 0) return; // 级别不符
+    if(certLevel && r.level && certLevel.indexOf(norm(r.level)) < 0) return;
+    var aws = splitKw(r.award);
+    if(aws.length && !aws.some(function(a){ return certAward.indexOf(norm(a)) >= 0; })) return; // 名次不符
+    out.push(r);
+  });
+  if(!certLevel) notes.push('证书级别未识别');
+  return {rules: out, notes: notes};
+}
+
+function dupKey(c){
+  return [c['学号'], norm(c['证书名称']), norm(c['级别']), norm(c['奖项/名次']), c['获奖日期']].join('|');
+}
+
+/* 导入/变更后统一跑一遍匹配 */
+function matchCert(c){
+  var m = findMatches(c);
+  c.matchIds = m.rules.map(function(r){ return r.id; });
+  c.matchNotes = m.notes;
+  var low = (c['置信度']||'').indexOf('低') >= 0;
+  if(low){ c.status = 'pending'; c.reason = '照片清晰度低，需人工核对'; return; }
+  if(c.status === 'confirmed' || c.status === 'rejected') return; // 人工决定不被覆盖
+  if(c.matchIds.length === 1){
+    var r = ruleById(c.matchIds[0]);
+    if(r && r.score !== '' && isFinite(Number(r.score))){
+      c.status = 'auto'; c.ruleId = r.id; c.reason = '';
+    } else {
+      c.status = 'pending'; c.reason = '匹配条款缺分值，请补录规则';
+    }
+  } else if(c.matchIds.length === 0){
+    c.status = 'pending'; c.reason = '未匹配到规则';
+  } else {
+    c.status = 'pending'; c.reason = '匹配到 ' + c.matchIds.length + ' 条规则，请选择';
+  }
+}
+function ruleById(id){
+  for(var i=0;i<state.rules.length;i++) if(state.rules[i].id===id) return state.rules[i];
+  return null;
+}
+function reMatchAll(){
+  var seen = {};
+  state.certs.forEach(function(c){
+    matchCert(c);
+    var k = dupKey(c);
+    if(c.status !== 'rejected' && seen[k] !== undefined){
+      if(c.status !== 'confirmed'){ c.status = 'dup'; c.dupOf = seen[k]; }
+    } else if(!seen[k]){ seen[k] = c.id; }
+  });
+  save(); renderAll();
+  toast('已按当前规则重新匹配');
+}
+function certScore(c){
+  if(c.status !== 'auto' && c.status !== 'confirmed') return null;
+  if(c.manualScore !== undefined && c.manualScore !== null && c.manualScore !== '') return Number(c.manualScore);
+  var r = ruleById(c.ruleId);
+  return r ? Number(r.score) : null;
+}
+function certCat(c){
+  var r = ruleById(c.ruleId);
+  return r ? r.cat : '未归类';
+}
+
+/* ---------- Tab 切换 ---------- */
+function switchTab(name){
+  document.querySelectorAll('nav.tabs button').forEach(function(b){ b.classList.toggle('active', b.dataset.tab===name); });
+  ['help','rules','certs','summary','pending','data'].forEach(function(t){
+    var el = $('tab-'+t); if(el) el.style.display = (t===name?'':'none');
+  });
+  if(name==='rules') renderRules();
+  if(name==='certs') renderCerts();
+  if(name==='summary') renderSummary();
+  if(name==='pending') renderPending();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+document.querySelectorAll('nav.tabs button').forEach(function(b){
+  b.addEventListener('click', function(){ switchTab(b.dataset.tab); });
+});
+
+/* ---------- 规则表渲染 ---------- */
+function renderRules(){
+  var t = $('rules-table');
+  var head = '<thead><tr>' + RULE_COLS.map(function(c){ return '<th style="min-width:'+c.w+'px">'+c.name+'</th>'; }).join('') + '<th style="width:52px">删除</th></tr></thead>';
+  var body = state.rules.map(function(r, i){
+    var cells = RULE_COLS.map(function(col){
+      var v = esc(r[col.key]);
+      var type = col.key==='score' ? 'type="number" step="0.05"' : '';
+      return '<td><input '+type+' data-ri="'+i+'" data-rk="'+col.key+'" value="'+v+'" oninput="updRule(this)" onchange="updRule(this)"></td>';
+    }).join('');
+    return '<tr>'+cells+'<td style="text-align:center"><button class="danger mini" onclick="delRule('+i+')">✕</button></td></tr>';
+  }).join('');
+  t.innerHTML = head + (body || '<tr><td colspan="9" class="empty">还没有规则。点上方「载入示例规则」看看结构，再按本校细则修改。</td></tr>');
+}
+function updRule(input){
+  var r = state.rules[+input.dataset.ri];
+  if(!r) return;
+  r[input.dataset.rk] = input.value;
+  if(input.dataset.rk==='score') r.score = input.value;
+  save();
+}
+function addRule(){
+  state.rules.push({id:uid(), no:'', cat:'', name:'', level:'', award:'', score:'', kws:'', note:''});
+  save(); renderRules();
+  var rows = $('rules-table').querySelectorAll('tbody tr, tr');
+  if(rows.length){ var inp = rows[rows.length-1].querySelector('input'); if(inp) inp.focus(); }
+}
+function delRule(i){
+  var r = state.rules[i];
+  if(!confirm('删除条款「'+(r.name||r.no||'未命名')+'」？已用此条款的证书会变成待确认。')){
+    return;
+  }
+  state.rules.splice(i,1);
+  state.certs.forEach(function(c){ if(c.ruleId===r.id){ c.status='pending'; c.reason='原条款已删除'; } });
+  save(); renderRules();
+}
+function importRulesCsv(){
+  $('file-rules').onchange = function(){
+    var f = this.files[0]; if(!f) return;
+    readFileText(f, function(text){
+      var parsed = XlsxLib.parseCsv(text);
+      var idx = {}; (parsed.header||[]).forEach(function(h,i){ idx[String(h).replace(/\s/g,'')] = i; });
+      var added = 0, replaced = state.rules.length === 0;
+      parsed.rows.forEach(function(row){
+        var r = {
+          id: uid(),
+          no:   pick(row, idx, ['条款编号','编号','条款']),
+          cat:  pick(row, idx, ['类别','分类']),
+          name: pick(row, idx, ['条款名称','名称','条款内容']),
+          level:pick(row, idx, ['级别','等级']),
+          award:pick(row, idx, ['奖项/名次','奖项','名次']),
+          score:pick(row, idx, ['分值','分数','加分']),
+          kws:  pick(row, idx, ['匹配关键词','关键词']),
+          note: pick(row, idx, ['备注','说明']),
+        };
+        if(r.no||r.name||r.kws){ state.rules.push(r); added++; }
+      });
+      save(); renderRules(); renderAll();
+      toast('导入规则 '+added+' 条'+(replaced?'（覆盖前清空）':''));
+    });
+    this.value='';
+  };
+  $('file-rules').click();
+}
+function pick(row, idx, names){
+  for(var i=0;i<names.length;i++){ var j = idx[names[i]]; if(j!==undefined && row[j]!==undefined && row[j]!=='') return String(row[j]).trim(); }
+  return '';
+}
+function exportRulesCsv(){
+  var rows = [RULE_COLS.map(function(c){return c.name;})].concat(
+    state.rules.map(function(r){ return RULE_COLS.map(function(c){ return r[c.key]==null?'':r[c.key]; }); })
+  );
+  download('综测规则对照表.csv', XlsxLib.toCsv(rows), 'text/csv');
+}
+function importCertsCsv(){
+  $('file-certs').onchange = function(){
+    var f = this.files[0]; if(!f) return;
+    readFileText(f, function(text){
+      var parsed = XlsxLib.parseCsv(text);
+      var idx = {}; (parsed.header||[]).forEach(function(h,i){ idx[String(h).replace(/\s/g,'')] = i; });
+      var added = 0;
+      parsed.rows.forEach(function(row){
+        var c = {id:'r'+(state.seq++), status:'pending', ruleId:null};
+        ['学号','姓名','证书名称','颁发单位','级别','奖项/名次','获奖日期','备注','置信度'].forEach(function(k){
+          c[k] = pick(row, idx, [k]);
+        });
+        if(c['证书名称']){ state.certs.push(c); added++; }
+      });
+      reMatchAll();
+      switchTab('certs');
+      toast('导入证书 '+added+' 条，已自动匹配');
+    });
+    this.value='';
+  };
+  $('file-certs').click();
+}
+function readFileText(file, cb){
+  var fr = new FileReader();
+  fr.onload = function(){ cb(fr.result); };
+  fr.readAsText(file, 'UTF-8');
+}
+
+/* ---------- 证书明细渲染 ---------- */
+function statusBadge(c){
+  var map = {
+    auto:     ['自动匹配','b-auto'],
+    pending:  ['待确认','b-pend'],
+    confirmed:['已确认','b-ok'],
+    rejected: ['已驳回','b-rej'],
+    dup:      ['疑似重复','b-dup'],
+  };
+  var extra = (c['置信度']||'').indexOf('低')>=0 ? ' <span class="badge b-low">照片模糊</span>' : '';
+  var m = map[c.status]||['?','b-pend'];
+  return '<span class="badge '+m[1]+'">'+m[0]+'</span>'+extra;
+}
+function renderCerts(){
+  var kw = norm($('cert-filter') ? $('cert-filter').value : '');
+  var st = $('cert-status-filter') ? $('cert-status-filter').value : '';
+  var counts = {auto:0,pending:0,confirmed:0,rejected:0,dup:0};
+  state.certs.forEach(function(c){ counts[c.status] = (counts[c.status]||0)+1; });
+  $('cert-stats').innerHTML =
+    stat(counts.auto+counts.confirmed, '计分条目') + stat(counts.pending, '待确认') +
+    stat(counts.dup, '疑似重复') + stat(counts.rejected, '已驳回') + stat(state.certs.length, '证书总数');
+  var head = '<thead><tr><th>学号</th><th>姓名</th><th>证书名称</th><th>级别</th><th>奖项/名次</th><th>日期</th><th>状态</th><th style="min-width:230px">匹配条款</th><th>分值</th><th style="min-width:120px">操作</th></tr></thead>';
+  var rows = '';
+  state.certs.forEach(function(c, i){
+    if(kw && !(norm(c['学号']+c['姓名']).indexOf(kw)>=0)) return;
+    if(st && c.status!==st) return;
+    var opts = '<option value="">— 待定 —</option>' + ruleOptions(c.ruleId);
+    var score = (c.manualScore!==undefined && c.manualScore!==null && c.manualScore!=='') ? c.manualScore : (function(){ var r=ruleById(c.ruleId); return r?r.score:''; })();
+    var reason = c.status==='pending' && c.reason ? '<div style="font-size:11.5px;color:#96503c;margin-top:2px">'+esc(c.reason)+'</div>' : '';
+    rows += '<tr>'
+      +'<td>'+esc(c['学号'])+'</td>'
+      +'<td>'+esc(c['姓名'])+'</td>'
+      +'<td style="min-width:170px"><b>'+esc(c['证书名称'])+'</b>'+(c['备注']?'<div style="font-size:11.5px;color:#7a6d58">'+esc(c['备注'])+'</div>':'')+'</td>'
+      +'<td>'+esc(c['级别'])+'</td>'
+      +'<td>'+esc(c['奖项/名次'])+'</td>'
+      +'<td>'+esc(c['获奖日期'])+'</td>'
+      +'<td>'+statusBadge(c)+'</td>'
+      +'<td><select data-ci="'+i+'" onchange="pickRule(this)">'+opts+'</select>'+reason+'</td>'
+      +'<td><input type="number" step="0.05" style="width:58px" data-ci="'+i+'" value="'+esc(score)+'" placeholder="自动" onchange="overrideScore(this)"></td>'
+      +'<td class="flex">'
+        +(c.status!=='confirmed'?'<button class="mini primary" onclick="confirmCert('+i+')">确认</button>':'')
+        +(c.status!=='rejected'?'<button class="mini danger" onclick="rejectCert('+i+')">驳回</button>':'')
+        +'<button class="mini ghost" onclick="resetCert('+i+')" title="重置为自动匹配">↺</button>'
+      +'</td></tr>';
+  });
+  $('certs-table').innerHTML = head + (rows || '<tr><td colspan="10" class="empty">还没有证书。从「数据管理」下载模板，或点上方「载入示例证书」。</td></tr>');
+}
+function stat(n, label){ return '<div class="stat"><div class="num">'+n+'</div><div class="lbl">'+label+'</div></div>'; }
+function ruleOptions(selId){
+  var byCat = {};
+  state.rules.forEach(function(r){ (byCat[r.cat||'未分类'] = byCat[r.cat||'未分类']||[]).push(r); });
+  var keys = Object.keys(byCat).sort(function(a,b){
+    var ia = CAT_ORDER_PREF.findIndex(function(x){return a.indexOf(x)>=0;});
+    var ib = CAT_ORDER_PREF.findIndex(function(x){return b.indexOf(x)>=0;});
+    return (ia<0?99:ia)-(ib<0?99:ib);
+  });
+  return keys.map(function(cat){
+    return '<optgroup label="'+esc(cat)+'">' + byCat[cat].map(function(r){
+      var label = (r.no?r.no+' ':'')+r.name+'（'+r.score+'分'+(r.level?'·'+r.level:'')+(r.award?'·'+r.award:'')+'）';
+      return '<option value="'+r.id+'"'+(r.id===selId?' selected':'')+'>'+esc(label)+'</option>';
+    }).join('') + '</optgroup>';
+  }).join('');
+}
+function pickRule(sel){
+  var c = state.certs[+sel.dataset.ci];
+  c.ruleId = sel.value || null;
+  c.manualScore = null;
+  if(c.ruleId && (c.status==='pending'||c.status==='auto')) c.status = 'confirmed';
+  if(!c.ruleId) c.status = 'pending';
+  save(); renderCerts(); renderPending();
+}
+function overrideScore(input){
+  var c = state.certs[+input.dataset.ci];
+  c.manualScore = input.value;
+  if(input.value !== ''){ if(c.status==='pending'||c.status==='auto') c.status='confirmed'; c.reason = c.reason || ''; }
+  save(); renderCerts();
+}
+function confirmCert(i){
+  var c = state.certs[i];
+  if(!c.ruleId){ toast('请先在「匹配条款」里选一条规则', 3000); return; }
+  c.status = 'confirmed'; save(); renderCerts(); renderPending(); toast('已确认：'+c['姓名']+' · '+c['证书名称']);
+}
+function rejectCert(i){
+  var c = state.certs[i];
+  if(!confirm('驳回「'+c['姓名']+' · '+c['证书名称']+'」？该条将不计分。')) return;
+  c.status = 'rejected'; save(); renderCerts(); renderPending();
+}
+function resetCert(i){
+  var c = state.certs[i];
+  c.status = 'pending'; c.ruleId = c.matchIds && c.matchIds.length===1 ? c.matchIds[0] : c.ruleId; c.manualScore = null;
+  matchCert(c); save(); renderCerts(); renderPending();
+}
+
+/* ---------- 汇总 ---------- */
+function categories(){
+  var seen = {}, out = [];
+  state.rules.forEach(function(r){ var k=r.cat||'未分类'; if(!seen[k]){ seen[k]=1; out.push(k); } });
+  out.sort(function(a,b){
+    var ia = CAT_ORDER_PREF.findIndex(function(x){return a.indexOf(x)>=0;});
+    var ib = CAT_ORDER_PREF.findIndex(function(x){return b.indexOf(x)>=0;});
+    return (ia<0?99:ia)-(ib<0?99:ib);
+  });
+  return out;
+}
+function computeSummary(){
+  var cats = categories();
+  var byStudent = {}, order = [];
+  state.certs.forEach(function(c){
+    var s = certScore(c);
+    if(s === null || !isFinite(s)) return;
+    var k = c['学号']||c['姓名'];
+    if(!byStudent[k]){ byStudent[k] = {'学号':c['学号'],'姓名':c['姓名'],'raw':{}}; order.push(k); }
+    var cat = certCat(c);
+    byStudent[k].raw[cat] = (byStudent[k].raw[cat]||0) + Number(s);
+  });
+  var notes = [];
+  var rows = order.map(function(k){
+    var st = byStudent[k];
+    var cells = {学号:st['学号'], 姓名:st['姓名']};
+    var total = 0;
+    cats.forEach(function(cat){
+      var v = st.raw[cat] || 0;
+      var cap = Number(state.caps[cat]);
+      var capped = (isFinite(cap) && cap !== 0 && state.caps[cat] !== '' && v > cap) ? cap : v;
+      if(v > capped) notes.push(st['姓名']+'「'+cat+'」原 '+v.toFixed(2)+' 分，按封顶 '+cap+' 分计');
+      cells[cat] = capped;
+      total += capped;
+    });
+    cells.__total = total;
+    cells.__rawTotal = cats.reduce(function(s2,cat){ return s2 + (st.raw[cat]||0); }, 0);
+    return cells;
+  });
+  return {cats:cats, rows:rows, notes:notes};
+}
+function renderSummary(){
+  var s = computeSummary();
+  var cats = s.cats;
+  // 封顶编辑表
+  var capsHead = '<thead><tr><th>类别</th>' + cats.map(function(c){return '<th>'+esc(c)+'</th>';}).join('') + '</tr></thead>';
+  var capsBody = '<tr><td style="font-weight:bold">学期封顶分</td>' + cats.map(function(c){
+    return '<td><input type="number" step="0.5" style="width:64px" value="'+esc(state.caps[c]||'')+'" placeholder="不限" onchange="setCap(\''+esc(c).replace(/'/g,"\\'")+'\', this.value)"></td>';
+  }).join('') + '</tr>';
+  $('caps-table').innerHTML = capsHead + capsBody;
+  // 汇总表
+  var head = '<thead><tr><th>学号</th><th>姓名</th>' + cats.map(function(c){return '<th>'+esc(c)+'</th>';}).join('') + '<th style="color:#8a6a2c">总分（封顶后）</th><th>封顶前合计</th></tr></thead>';
+  var body = s.rows.map(function(r){
+    return '<tr><td>'+esc(r['学号'])+'</td><td><b>'+esc(r['姓名'])+'</b></td>'
+      + cats.map(function(c){ return '<td>'+(r[c] ? r[c].toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1') : '—')+'</td>'; }).join('')
+      + '<td style="font-weight:bold;color:#8a6a2c">'+r.__total.toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1')+'</td><td style="color:#7a6d58">'+r.__rawTotal.toFixed(2).replace(/\.00$/,'')+'</td></tr>';
+  }).join('');
+  $('summary-table').innerHTML = head + (body || '<tr><td colspan="'+(cats.length+4)+'" class="empty">还没有可计分的条目。先去「证书明细」导入并确认。</td></tr>');
+  var nb = $('cap-notes');
+  if(s.notes.length){ nb.style.display=''; nb.innerHTML = '<b>封顶提示：</b><br>· ' + s.notes.map(esc).join('<br>· '); }
+  else nb.style.display='none';
+}
+function setCap(cat, v){
+  if(v==='') delete state.caps[cat]; else state.caps[cat] = v;
+  save(); renderSummary();
+}
+
+/* ---------- 待确认 ---------- */
+function renderPending(){
+  var list = state.certs.filter(function(c){ return c.status==='pending' || c.status==='dup'; });
+  var el = $('pending-list');
+  if(!list.length){ el.innerHTML = '<div class="empty">清清爽爽，没有需要确认的条目了 ☁️</div>'; return; }
+  el.innerHTML = list.map(function(c){
+    var i = state.certs.indexOf(c);
+    var reason = c.status==='dup'
+      ? '与已有证书疑似重复（同一学号 · 同名证书 · 同级别/日期），重复提交不重复计分'
+      : (c.reason||'需人工确认');
+    var opts = '<option value="">— 选择条款 —</option>' + ruleOptions(c.ruleId);
+    return '<div class="card"><div class="flex" style="justify-content:space-between">'
+      +'<div><b>'+esc(c['姓名'])+'</b>（'+esc(c['学号'])+'）· '+esc(c['证书名称'])
+      +(c['级别']?' · '+esc(c['级别']):'')+(c['奖项/名次']?' · '+esc(c['奖项/名次']):'')+'</div>'
+      +statusBadge(c)+'</div>'
+      +'<div style="font-size:12.5px;color:#96503c;margin:6px 0">※ '+esc(reason)+'</div>'
+      +(c.status==='pending'
+        ? '<div class="flex"><select data-ci="'+i+'" style="max-width:420px" onchange="pickRule(this)">'+opts+'</select>'
+          +'<button class="mini primary" onclick="confirmCert('+i+')">确认计分</button></div>'
+        : '<div class="flex"><button class="mini" onclick="resetCert('+i+')">这不是重复，重新计分</button>'
+          +'<button class="mini danger" onclick="rejectCert('+i+')">驳回</button></div>')
+      +'</div>';
+  }).join('');
+}
+
+/* ---------- 导出 Excel ---------- */
+function exportExcel(){
+  if(!state.certs.length){ toast('还没有证书数据'); return; }
+  var detail = [['学号','姓名','证书名称','颁发单位','级别','奖项/名次','获奖日期','类别','依据条款','分值','状态','匹配方式','备注']];
+  state.certs.forEach(function(c){
+    var r = ruleById(c.ruleId);
+    var score = certScore(c);
+    var method = (c.manualScore!==undefined && c.manualScore!==null && c.manualScore!=='') ? '人工覆盖分值'
+               : (c.status==='confirmed' ? '人工选条款' : c.status==='auto' ? '自动匹配' : '—');
+    detail.push([
+      c['学号'], c['姓名'], c['证书名称'], c['颁发单位'], c['级别'], c['奖项/名次'], c['获奖日期'],
+      r ? r.cat : '', r ? ((r.no?r.no+' ':'')+r.name) : (c.status==='pending'?'【待确认】':''),
+      score!==null && score!==undefined && isFinite(score) ? score : '',
+      statusText(c), method, c['备注']||''
+    ]);
+  });
+  var s = computeSummary();
+  var sumHead = ['学号','姓名'].concat(s.cats).concat(['总分（封顶后）','封顶前合计']);
+  var sumRows = s.rows.map(function(r){
+    var row = [r['学号'], r['姓名']];
+    s.cats.forEach(function(c){ row.push(r[c] ? +r[c].toFixed(2) : 0); });
+    row.push(+r.__total.toFixed(2));
+    row.push(+r.__rawTotal.toFixed(2));
+    return row;
+  });
+  var pend = [['学号','姓名','证书名称','问题','建议处理']];
+  state.certs.filter(function(c){ return c.status==='pending'||c.status==='dup'; }).forEach(function(c){
+    pend.push([c['学号'],c['姓名'],c['证书名称'],
+      c.status==='dup' ? '疑似重复提交' : (c.reason||'需人工确认'),
+      c.status==='dup' ? '核对是否同一张证书' : '请班委对照细则选条款']);
+  });
+  state.certs.filter(function(c){ return (c['置信度']||'').indexOf('低')>=0 && c.status!=='rejected'; }).forEach(function(c){
+    if(state.certs.some(function(x){return x===c && (x.status==='pending'||x.status==='dup');})) return;
+    pend.push([c['学号'],c['姓名'],c['证书名称'],'照片清晰度低','请向本人要清晰版重新核对']);
+  });
+  var d = new Date();
+  var name = '综测加分核算_' + d.getFullYear() + (d.getMonth()+1<10?'0':'') + (d.getMonth()+1) + (d.getDate()<10?'0':'') + d.getDate() + '.xlsx';
+  var bytes = XlsxLib.buildXlsx([
+    {name:'加分明细', headerBold:true, rows:detail, numericCols:[9]},
+    {name:'按人汇总', headerBold:true, rows:[sumHead].concat(sumRows), numericCols:s.cats.map(function(c,i){return i+2;}).concat([s.cats.length+2, s.cats.length+3])},
+    {name:'待确认清单', headerBold:true, rows:pend}
+  ]);
+  download(name, new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  toast('已导出：'+name);
+}
+function statusText(c){
+  return {auto:'自动匹配',pending:'待确认',confirmed:'已确认',rejected:'已驳回',dup:'疑似重复'}[c.status]||c.status;
+}
+
+/* ---------- 数据包 ---------- */
+function exportPackage(){
+  download('综测数据包_'+Date.now()+'.json', JSON.stringify({v:1, rules:state.rules, certs:state.certs, caps:state.caps, seq:state.seq}, null, 1), 'application/json');
+  toast('数据包已导出，注意保存');
+}
+function importPackage(file){
+  readFileText(file, function(text){
+    try{
+      var p = JSON.parse(text);
+      if(!p.rules || !Array.isArray(p.rules)) throw 0;
+      state = {rules:p.rules, certs:p.certs||[], caps:p.caps||{}, seq:p.seq||1000};
+      save(); renderAll(); switchTab('rules');
+      toast('数据包已导入：规则 '+state.rules.length+' 条 · 证书 '+state.certs.length+' 张');
+    }catch(e){ toast('文件不是有效的数据包 JSON', 3500); }
+  });
+}
+function downloadTemplate(kind){
+  if(kind==='rules'){
+    var rows = [RULE_COLS.map(function(c){return c.name;})].concat(
+      state.rules.length ? state.rules.map(function(r){ return RULE_COLS.map(function(c){return r[c.key]==null?'':r[c.key];}); })
+      : [['示例-01','志愿服务','志愿服务活动',  '','','0.5','志愿者;志愿活动;义卖','时长类加分请按细则折算后人工覆盖分值'],
+         ['示例-02','文体','文体竞赛获奖','校级','一等奖', '1','运动会;篮球赛;合唱;舞蹈','示例分值，务必按本校细则修改']]
+    );
+    download('综测规则对照表_模板.csv', XlsxLib.toCsv(rows), 'text/csv');
+  } else {
+    var rows2 = [CERT_COLS].concat([
+      ['20240001','张三','全国大学生英语竞赛（NECCS）三等奖','高等学校大学外语教学指导委员会','国家级','三等奖','2025-05','高'],
+      ['20240002','李四','校运动会男子100米第一名','重庆工商大学','校级','第一名','2025-04','高'],
+    ]);
+    download('证书明细_模板.csv', XlsxLib.toCsv(rows2), 'text/csv');
+  }
+}
+function clearAll(){
+  if(!confirm('⚠️ 清空全部规则、证书和封顶设置？此操作不可撤销。\n\n建议先「导出数据包」备份。')) return;
+  if(!confirm('再次确认：真的要全部清空？')) return;
+  state = {rules:[], certs:[], caps:{}, seq:1};
+  save(); renderAll();
+  toast('已清空');
+}
+
+/* ---------- 示例数据 ---------- */
+function loadDemoRules(){
+  if(state.rules.length && !confirm('已有 '+state.rules.length+' 条规则，追加示例规则？')) return;
+  var demo = [
+    {no:'学业-01', cat:'学业', name:'学科竞赛（国家级）', level:'国家级', award:'一等奖', score:'4', kws:'竞赛;大赛;challenge;挑战杯;互联网+', note:'示例分值，务必按本校细则修改'},
+    {no:'学业-02', cat:'学业', name:'学科竞赛（国家级）', level:'国家级', award:'二等奖', score:'3', kws:'竞赛;大赛;挑战杯;互联网+', note:''},
+    {no:'学业-03', cat:'学业', name:'学科竞赛（国家级）', level:'国家级', award:'三等奖', score:'2', kws:'竞赛;大赛;挑战杯;互联网+', note:''},
+    {no:'学业-04', cat:'学业', name:'学科竞赛（省级）', level:'省级', award:'一等奖', score:'2.5', kws:'竞赛;大赛', note:''},
+    {no:'学业-05', cat:'学业', name:'英语四六级（CET）', level:'', award:'六级', score:'1', kws:'CET;大学英语;四六级', note:''},
+    {no:'文体-01', cat:'文体', name:'文体比赛（校级）', level:'校级', award:'第一名;冠军;金奖', score:'1.5', kws:'运动会;篮球;足球;排球;合唱;舞蹈;晚会;歌手', note:''},
+    {no:'文体-02', cat:'文体', name:'文体比赛（校级）', level:'校级', award:'第二名;亚军;银奖', score:'1', kws:'运动会;篮球;足球;排球;合唱;舞蹈;晚会;歌手', note:''},
+    {no:'文体-03', cat:'文体', name:'文体比赛（校级）', level:'校级', award:'第三名;季军;铜奖', score:'0.5', kws:'运动会;篮球;足球;排球;合唱;舞蹈;晚会;歌手', note:''},
+    {no:'志服-01', cat:'志愿服务', name:'志愿服务活动', level:'', award:'', score:'0.5', kws:'志愿者;志愿服务;义卖;支教;社区服务', note:'按次计；时长折算请人工覆盖分值'},
+    {no:'实践-01', cat:'社会实践', name:'社会实践先进个人', level:'校级', award:'', score:'1', kws:'社会实践;三下乡;先进个人', note:''},
+    {no:'品德-01', cat:'思想品德', name:'优秀学生/优秀团员', level:'校级', award:'', score:'1', kws:'优秀学生;优秀团员;三好学生;优秀干部', note:''},
+    {no:'品德-02', cat:'思想品德', name:'优秀学生（院级）', level:'院级', award:'', score:'0.5', kws:'优秀学生;优秀团员', note:''},
+  ];
+  demo.forEach(function(d){ state.rules.push(Object.assign({id:uid()}, d)); });
+  save(); renderRules(); renderAll();
+  toast('示例规则已载入（12 条）。这是通用示例，分值必须按你们细则改！');
+}
+function loadDemoCerts(){
+  if(state.certs.length && !confirm('已有 '+state.certs.length+' 条证书，追加示例证书？')) return;
+  var demo = [
+    {'学号':'20240001','姓名':'张三','证书名称':'全国大学生英语竞赛（NECCS）三等奖','颁发单位':'高等学校大学外语教学指导委员会','级别':'国家级','奖项/名次':'三等奖','获奖日期':'2025-05','备注':'','置信度':'高'},
+    {'学号':'20240001','姓名':'张三','证书名称':'校运动会男子100米第一名','颁发单位':'重庆工商大学','级别':'校级','奖项/名次':'第一名','获奖日期':'2025-04','备注':'','置信度':'高'},
+    {'学号':'20240002','姓名':'李四','证书名称':'“挑战杯”大学生创业计划竞赛省级二等奖','颁发单位':'共青团重庆市委','级别':'省级','奖项/名次':'二等奖','获奖日期':'2025-06','备注':'','置信度':'高'},
+    {'学号':'20240002','姓名':'李四','证书名称':'“挑战杯”大学生创业计划竞赛省级二等奖','颁发单位':'共青团重庆市委','级别':'省级','奖项/名次':'二等奖','获奖日期':'2025-06','备注':'重复提交测试','置信度':'高'},
+    {'学号':'20240003','姓名':'王五','证书名称':'XX市马拉松志愿服务证书','颁发单位':'XX市青年志愿者协会','级别':'市级','奖项/名次':'','获奖日期':'2025-03','备注':'','置信度':'中'},
+    {'学号':'20240004','姓名':'赵六','证书名称':'（照片反光看不清）','颁发单位':'','级别':'','奖项/名次':'','获奖日期':'','备注':'需要重新拍照','置信度':'低'},
+  ];
+  demo.forEach(function(d){ state.certs.push(Object.assign({id:'r'+(state.seq++), status:'pending', ruleId:null}, d)); });
+  reMatchAll(); switchTab('certs');
+  toast('示例证书已载入（6 条），含重复与待确认场景');
+}
+function loadDemo(){
+  loadDemoRules(); loadDemoCerts();
+  switchTab('certs');
+  toast('示例数据已载入，随便点点感受一下');
+}
+function renderAll(){
+  if($('tab-rules').style.display==='') renderRules();
+  if($('tab-certs').style.display==='') renderCerts();
+  if($('tab-summary').style.display==='') renderSummary();
+  if($('tab-pending').style.display==='') renderPending();
+}
+
+/* ---------- 拖放 & 文件 ---------- */
+var dz = $('drop-package');
+dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', function(){ dz.classList.remove('drag'); });
+dz.addEventListener('drop', function(e){
+  e.preventDefault(); dz.classList.remove('drag');
+  var f = e.dataTransfer.files[0];
+  if(f) importPackage(f);
+});
+$('file-package').onchange = function(){
+  var f = this.files[0]; if(f) importPackage(f); this.value='';
+};
+
+/* ---------- 入场动画 ---------- */
+var io = new IntersectionObserver(function(entries){
+  entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+}, {threshold:.06});
+document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+
+/* 首次访问提示 */
+if(!localStorage.getItem('zongce_seen')){
+  setTimeout(function(){
+    if(!state.rules.length && !state.certs.length){
+      var dlg = $('dlg');
+      $('dlg-body').innerHTML = '<h3>你好，班委 🌿</h3>'
+        +'<p style="color:#7a6d58">综测评算台会替你把证书归类、算分、查重——但每一条加分的依据条款都会写明白，最终拍板的还是你。</p>'
+        +'<p style="color:#7a6d58;font-size:12.5px;margin-top:6px">🔒 你的数据只存在你自己的浏览器里，不上传任何服务器。</p>'
+        +'<ol><li>先到「使用说明」看一眼流程</li><li>「规则对照表」里录入或导入你们的综测细则</li><li>导入证书 CSV → 处理「待确认」→ 导出 Excel</li></ol>'
+        +'<div class="flex" style="margin-top:14px;justify-content:flex-end"><button class="primary" onclick="document.getElementById(\'dlg\').close()">开始</button></div>';
+      dlg.showModal();
+      localStorage.setItem('zongce_seen','1');
+    }
+  }, 600);
+}
+</script>
+</body>
+</html>
